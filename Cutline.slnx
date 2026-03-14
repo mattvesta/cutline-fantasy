@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Cutline.AI/Cutline.AI.csproj" />
+    <Project Path="src/Cutline.Api/Cutline.Api.csproj" />
+    <Project Path="src/Cutline.Core/Cutline.Core.csproj" />
+    <Project Path="src/Cutline.Infrastructure/Cutline.Infrastructure.csproj" />
+    <Project Path="src/Cutline.Ingest/Cutline.Ingest.csproj" />
+    <Project Path="src/Cutline.Tests/Cutline.Tests.csproj" />
+  </Folder>
+</Solution>
