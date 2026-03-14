@@ -1,4 +1,8 @@
+using Cutline.Api.Endpoints;
+using Cutline.Api.Hubs;
+using Cutline.Core.Interfaces;
 using Cutline.Infrastructure.Data;
+using Cutline.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,16 +10,19 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<CutlineDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
 
+builder.Services.AddScoped<ILeagueRepository, LeagueRepository>();
+builder.Services.AddScoped<ITeamRepository, TeamRepository>();
+builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
+builder.Services.AddScoped<IWeekRepository, WeekRepository>();
+
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 
-// TODO: Register repositories and services
-
 var app = builder.Build();
 
-app.UseHttpsRedirection();
+app.MapLeagues();
+app.MapTeams();
 
-// TODO: Map endpoint groups
-// TODO: Map SignalR hubs
+app.MapHub<ScoringHub>("/hubs/scoring");
 
 app.Run();
