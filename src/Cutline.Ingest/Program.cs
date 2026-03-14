@@ -1,4 +1,6 @@
+using Cutline.Core.Interfaces;
 using Cutline.Infrastructure.Data;
+using Cutline.Infrastructure.Repositories;
 using Cutline.Ingest.Sports;
 using Cutline.Ingest.Workers;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +18,7 @@ builder.Services.AddHttpClient<SleeperClient>();
 builder.Services.AddHttpClient<NflverseClient>();
 builder.Services.AddHttpClient<EspnLiveScoringClient>();
 
-// TODO: register IPlayerRepository
+builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
 
 builder.Services.AddHostedService<SleeperSyncWorker>();
 builder.Services.AddHostedService<NflverseRosterSyncWorker>();

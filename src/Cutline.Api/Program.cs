@@ -23,6 +23,9 @@ var app = builder.Build();
 app.MapLeagues();
 app.MapTeams();
 
+if (app.Environment.IsDevelopment())
+    app.MapDevEndpoints();
+
 app.MapHub<ScoringHub>("/hubs/scoring");
 
 app.Run();
