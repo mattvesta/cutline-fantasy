@@ -77,7 +77,7 @@ For full self-hosting documentation including SSL, reverse proxy setup, and spor
 
 | Layer | Technology |
 |---|---|
-| Front end | Vue 3, Vite, Pinia, Tailwind CSS |
+| Front end | Vue 3, Vite, TypeScript, Pinia, Tailwind CSS v4 |
 | Mobile | PWA via vite-plugin-pwa |
 | API | ASP.NET Core 10 Minimal APIs |
 | Real-time | SignalR |
@@ -174,10 +174,14 @@ Cutline is open source and welcomes contributions. The guillotine format deserve
 ## Roadmap
 
 - [x] Data model + EF Core entities
-- [ ] Guillotine engine — elimination + waiver processing
+- [x] Sleeper player sync — metadata, ADP, injury status, photos
+- [x] nflverse roster ID mapping — cross-platform ID bridge
+- [x] Guillotine engine — weekly elimination + waiver claim processing
+- [x] Player browser — paginated, sortable, searchable with ADP
+- [x] League creation flow
+- [x] Lineup management — drag-and-drop with position validation
 - [ ] Draft room (snake)
 - [ ] Live scoring via SignalR
-- [ ] Lineup management
 - [ ] PWA setup + mobile install
 - [ ] AI weekly report (hosted)
 - [ ] AI trade analyzer (hosted)

@@ -77,7 +77,7 @@ The backend splits into two independently deployable processes that share `Cutli
 - **`Cutline.AI`** — Anthropic Claude API integration. **Hosted platform only** — weekly reports, trade analysis, waiver assistant, draft assistant. Do not wire this into self-hostable flows.
 - **`Cutline.Tests`** — Unit and integration tests across all layers.
 
-### Frontend — Vue 3 + TypeScript + Tailwind CSS
+### Frontend — Vue 3 + TypeScript + Tailwind CSS v4
 
 Located in `client/`. All frontend code is TypeScript (`.ts` / `.vue` with `<script setup lang="ts">`). Key subdirectories:
 - `stores/` — Pinia stores for app state
@@ -85,11 +85,31 @@ Located in `client/`. All frontend code is TypeScript (`.ts` / `.vue` with `<scr
 - `api/` — Typed API client (wraps backend endpoints)
 - `components/` / `views/` — Standard Vue component hierarchy
 
-Styling uses Tailwind CSS utility classes. Avoid writing custom CSS unless Tailwind cannot express the style.
+**Tailwind CSS v4** — uses `@import 'tailwindcss'` syntax (not `@tailwind` directives). Design tokens are CSS custom properties defined in `client/src/style.css`, not in a Tailwind config file. Always use `var(--token-name)` for colors/surfaces rather than hardcoded hex values. Key tokens:
+- `--bg: #0c0c12`, `--surface: #131319`, `--surface-raised` — backgrounds
+- `--accent: #e31e24` (brand red), `--accent-warm: #f97316` (orange), `--accent-dim` — brand colors
+- `--text: #f0ede6` (warm cream), `--text-secondary`, `--text-muted` — text hierarchy
+- `--border`, `--border-subtle` — borders
 
-### Key domain concept
+Shared utility classes in `style.css`: `.page`, `.card`, `.card-raised`, `.btn`, `.btn-primary`, `.btn-ghost`, `.input`, `.label`, `.data-table`, `.divider`.
+
+**Brand assets** — `client/public/logo.png` and `client/public/hero-logo.png` are both the square Cutline Fantasy logo. Avoid running ImageMagick background-removal on them without explicit user request — the white background has previously caused color distortion.
+
+**vuedraggable** (`vuedraggable@next` / v4) is installed but `TeamView.vue` currently uses native HTML5 drag-and-drop for lineup management, not vuedraggable, to allow fine-grained control over what is draggable (player card only, not the slot label).
+
+### Key domain concepts
 
 The **guillotine engine** (lives in `Cutline.Core`) is the heart of the platform. Each week it: identifies the lowest-scoring team, triggers elimination, releases that team's roster to waivers, and processes waiver claims for remaining teams. The elimination process is immutable and produces a full audit trail — never mutate past elimination records.
+
+**Roster slots** (`RosterSlot`) have a fixed `SlotType` (QB, RB, WR, TE, Flex, SuperFlex, K, DEF, Bench, IR) and a nullable `PlayerId` — slots can be empty. Lineup changes swap `PlayerId` values between two slots; the slot types themselves never change. Position eligibility rules (enforced in both frontend and should be enforced in backend):
+- QB → QB, SuperFlex, Bench
+- RB → RB, Flex, SuperFlex, Bench
+- WR → WR, Flex, SuperFlex, Bench
+- TE → TE, Flex, SuperFlex, Bench
+- K → K, Bench
+- DEF → DEF, Bench
+
+**Lineup swap endpoint**: `POST /api/leagues/{leagueId}/teams/{teamId}/lineup/swap` with body `{ slotAId, slotBId }`. Swaps `PlayerId` between the two slots and returns the full updated team. Because `PlayerId` is nullable, dragging a player to an empty slot moves them there (source becomes null); dragging between two occupied slots swaps them.
 
 ### Multi-tenancy
 
@@ -119,6 +139,16 @@ Redis serves two purposes:
 ### Self-host vs hosted distinction
 
 Features in `Cutline.AI` and anything behind the `hosted-only` label in issues are exclusive to the hosted platform. All default data sources (Sleeper, nflverse, ESPN unofficial) are free and require no API keys. The hosted platform uses a managed feed. Keep these paths cleanly separated.
+
+### Dev seed
+
+`POST /api/dev/seed` creates a test league with 8 teams and seeds players onto their rosters from the DB. **Requires Sleeper sync to have run first** — it queries top-ADP players by position and returns HTTP 400 if fewer than 8 QBs or 16 RBs/WRs are found. Each team gets 8 starters (QB, RB×2, WR×2, TE, K, DEF) + 6 bench spots distributed round-robin by ADP rank. `DELETE /api/dev/seed` wipes all league data.
+
+### EF Core migrations
+
+`dotnet ef database update --project src/Cutline.Infrastructure --startup-project src/Cutline.Api`
+
+Current migrations (in order): `InitialCreate` → `AddPlayerMetadata` → `AddPlayerAdp` → `AddFaabSettings` → `AllowEmptyRosterSlots`.
 
 ## License
 
