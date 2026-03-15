@@ -53,13 +53,13 @@ async function selectTargetTeam(t: Team) {
 
 function toggleOffered(playerId: string) {
   const s = new Set(offeredIds.value)
-  s.has(playerId) ? s.delete(playerId) : s.add(playerId)
+  if (s.has(playerId)) s.delete(playerId); else s.add(playerId)
   offeredIds.value = s
 }
 
 function toggleRequested(playerId: string) {
   const s = new Set(requestedIds.value)
-  s.has(playerId) ? s.delete(playerId) : s.add(playerId)
+  if (s.has(playerId)) s.delete(playerId); else s.add(playerId)
   requestedIds.value = s
 }
 

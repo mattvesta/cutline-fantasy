@@ -102,7 +102,7 @@ const WEEK_STATUSES = ['Upcoming', 'InProgress', 'Scoring', 'Eliminated', 'Compl
 
 function toggleWeek(weekNumber: number) {
   const s = new Set(expandedWeeks.value)
-  s.has(weekNumber) ? s.delete(weekNumber) : s.add(weekNumber)
+  if (s.has(weekNumber)) s.delete(weekNumber); else s.add(weekNumber)
   expandedWeeks.value = s
 }
 

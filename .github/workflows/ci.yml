@@ -38,6 +38,7 @@ jobs:
           dotnet ef migrations has-pending-model-changes \
             --project src/Cutline.Infrastructure \
             --startup-project src/Cutline.Api \
+            --configuration Release \
             --no-build \
           && echo "No pending model changes." \
           || (echo "ERROR: Model changes detected without a migration. Run 'dotnet ef migrations add <Name>'." && exit 1)

@@ -9,7 +9,8 @@ export function setAuthToken(token: string | null) {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...init?.headers as Record<string, string> }
   if (_token) headers['Authorization'] = `Bearer ${_token}`
-  const { headers: _h, ...rest } = init ?? {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { headers: _headers, ...rest } = init ?? {}
   const res = await fetch(`${BASE}${path}`, { ...rest, headers })
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`)
   return res.json() as Promise<T>
