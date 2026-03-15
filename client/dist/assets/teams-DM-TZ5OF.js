@@ -1,0 +1,1 @@
+import{z as t}from"./index-DuZYQdYs.js";const m={getByLeague:e=>t.get(`/leagues/${e}/teams`),getById:(e,s)=>t.get(`/leagues/${e}/teams/${s}`),swapSlots:(e,s,a,g)=>t.post(`/leagues/${e}/teams/${s}/lineup/swap`,{slotAId:a,slotBId:g})};export{m as t};

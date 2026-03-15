@@ -19,4 +19,12 @@ public interface IPlayerRepository
     /// Returns the number of players updated.
     /// </summary>
     Task<int> BackfillGsisIdsAsync(IEnumerable<PlayerIdMap> mappings, CancellationToken ct = default);
+
+    /// <summary>
+    /// For every GsisId in the nflverse roster that has no corresponding Player row,
+    /// creates a minimal Player record so stats can be imported for that player.
+    /// Existing players (matched by GsisId) are not modified.
+    /// Returns the number of new Player rows created.
+    /// </summary>
+    Task<int> EnsureNflversePlayersAsync(IEnumerable<PlayerIdMap> mappings, CancellationToken ct = default);
 }

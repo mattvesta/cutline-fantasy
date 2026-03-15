@@ -82,10 +82,26 @@ public class NflverseClient
 
     private async Task<IReadOnlyList<PlayerWeekStats>> FetchPlayerStatsCsvAsync(int season, int? week, CancellationToken ct)
     {
-        var url = $"https://github.com/nflverse/nflverse-data/releases/download/player_stats/player_stats_{season}.csv";
+        // nflverse reorganised their releases starting with 2025: the old
+        // player_stats release only goes up to 2024. Try the legacy URL first;
+        // on 404 fall back to the new stats_player release layout.
+        var primaryUrl  = $"https://github.com/nflverse/nflverse-data/releases/download/player_stats/player_stats_{season}.csv";
+        var fallbackUrl = $"https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_{season}.csv";
 
-        using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
-        response.EnsureSuccessStatusCode();
+        var primaryResponse = await _http.GetAsync(primaryUrl, HttpCompletionOption.ResponseHeadersRead, ct);
+        HttpResponseMessage response;
+        if (primaryResponse.IsSuccessStatusCode)
+        {
+            response = primaryResponse;
+        }
+        else
+        {
+            primaryResponse.Dispose();
+            response = await _http.GetAsync(fallbackUrl, HttpCompletionOption.ResponseHeadersRead, ct);
+            response.EnsureSuccessStatusCode();
+        }
+
+        using var _ = response;
 
         using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
@@ -103,7 +119,9 @@ public class NflverseClient
         var attemptsIdx      = IndexOf(h, "attempts");
         var passingYardsIdx  = IndexOf(h, "passing_yards");
         var passingTdsIdx    = IndexOf(h, "passing_tds");
+        // Column renamed "interceptions" → "passing_interceptions" in the 2025 release layout
         var intIdx           = IndexOf(h, "interceptions");
+        if (intIdx < 0) intIdx = IndexOf(h, "passing_interceptions");
         var carriesIdx       = IndexOf(h, "carries");
         var rushYardsIdx     = IndexOf(h, "rushing_yards");
         var rushTdsIdx       = IndexOf(h, "rushing_tds");

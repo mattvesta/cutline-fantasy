@@ -7,6 +7,7 @@ public class Manager
     public string Email { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public string? PasswordHash { get; set; }
+    public bool IsAdmin { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<Team> Teams { get; set; } = new List<Team>();

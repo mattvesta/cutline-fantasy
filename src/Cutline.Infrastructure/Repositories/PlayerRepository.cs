@@ -222,6 +222,52 @@ public class PlayerRepository : IPlayerRepository
         return updated;
     }
 
+    public async Task<int> EnsureNflversePlayersAsync(IEnumerable<PlayerIdMap> mappings, CancellationToken ct = default)
+    {
+        var mapList = mappings
+            .Where(m => !string.IsNullOrEmpty(m.GsisId))
+            .ToList();
+
+        if (mapList.Count == 0) return 0;
+
+        // One query for all GsisIds that already exist — anything not in this set needs to be created.
+        var allGsisIds = mapList.Select(m => m.GsisId!).ToHashSet(StringComparer.Ordinal);
+        var existing = await _db.Players
+            .Where(p => p.GsisId != null && allGsisIds.Contains(p.GsisId!))
+            .Select(p => p.GsisId!)
+            .ToHashSetAsync(ct);
+
+        var toCreate = mapList.Where(m => !existing.Contains(m.GsisId!)).ToList();
+        if (toCreate.Count == 0) return 0;
+
+        var now = DateTimeOffset.UtcNow;
+        const int batchSize = 500;
+
+        for (var offset = 0; offset < toCreate.Count; offset += batchSize)
+        {
+            var batch = toCreate.Skip(offset).Take(batchSize);
+            foreach (var m in batch)
+            {
+                _db.Players.Add(new Player
+                {
+                    Id           = Guid.NewGuid(),
+                    GsisId       = m.GsisId,
+                    SleeperId    = m.SleeperId,
+                    EspnId       = m.EspnId,
+                    FirstName    = m.FirstName ?? string.Empty,
+                    LastName     = m.LastName  ?? string.Empty,
+                    Position     = m.Position  ?? string.Empty,
+                    NflTeam      = m.Team,
+                    Status       = PlayerStatus.Active,
+                    LastSyncedAt = now,
+                });
+            }
+            await _db.SaveChangesAsync(ct);
+        }
+
+        return toCreate.Count;
+    }
+
     private static string NameKey(string first, string last, string position) =>
         $"{first.Trim().ToLowerInvariant()}|{last.Trim().ToLowerInvariant()}|{position.Trim().ToLowerInvariant()}";
 

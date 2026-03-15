@@ -97,6 +97,15 @@ const STATUS: Record<string, { dot: string; label: string }> = {
               <RouterLink to="/players" class="btn btn-ghost px-6 py-2.5 text-sm">
                 Browse Players
               </RouterLink>
+              <RouterLink
+                v-if="auth.isAdmin"
+                to="/admin"
+                class="btn btn-ghost px-6 py-2.5 text-sm flex items-center gap-2"
+                style="color: var(--accent); border-color: rgba(227,30,36,0.25)"
+              >
+                <span class="text-xs font-semibold px-1.5 py-0.5 rounded" style="background: rgba(227,30,36,0.15); border: 1px solid rgba(227,30,36,0.25)">ADMIN</span>
+                Dashboard
+              </RouterLink>
             </div>
           </div>
 

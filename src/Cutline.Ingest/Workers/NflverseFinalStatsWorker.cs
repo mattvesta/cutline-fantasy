@@ -1,5 +1,6 @@
 namespace Cutline.Ingest.Workers;
 
+using Cutline.Core.Interfaces;
 using Cutline.Infrastructure.Sports;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -30,18 +31,33 @@ public class NflverseFinalStatsWorker(
     private async Task RunAsync(CancellationToken ct)
     {
         var season = CurrentNflSeason();
-        logger.LogInformation("NflverseFinalStatsWorker: fetching season {Season} stats", season);
+        logger.LogInformation("NflverseFinalStatsWorker: starting season {Season}", season);
 
         try
         {
-            var stats = await nflverse.FetchAllSeasonStatsAsync(season, ct);
-            logger.LogInformation("Fetched {Count} stat rows for season {Season}", stats.Count, season);
-
             await using var scope = scopeFactory.CreateAsyncScope();
-            var importer = scope.ServiceProvider.GetRequiredService<NflverseStatsImporter>();
-            await importer.ImportAsync(stats, ct);
+            var repo = scope.ServiceProvider.GetRequiredService<IPlayerRepository>();
 
-            logger.LogInformation("NflverseFinalStatsWorker: season {Season} import complete", season);
+            // Resolve GsisIds on existing players, then create any still-missing ones
+            var roster = await nflverse.FetchRosterIdMappingsAsync(season, ct);
+
+            var backfilled = await repo.BackfillGsisIdsAsync(roster, ct);
+            if (backfilled > 0)
+                logger.LogInformation("NflverseFinalStatsWorker: GsisId backfilled for {Count} players", backfilled);
+
+            var created = await repo.EnsureNflversePlayersAsync(roster, ct);
+            if (created > 0)
+                logger.LogInformation("NflverseFinalStatsWorker: {Count} new players created from nflverse roster", created);
+
+            var stats = await nflverse.FetchAllSeasonStatsAsync(season, ct);
+            logger.LogInformation("NflverseFinalStatsWorker: fetched {Count} stat rows for season {Season}", stats.Count, season);
+
+            var importer = scope.ServiceProvider.GetRequiredService<NflverseStatsImporter>();
+            var (inserted, updated) = await importer.ImportAsync(stats, ct);
+
+            logger.LogInformation(
+                "NflverseFinalStatsWorker: season {Season} complete — {Inserted} inserted, {Updated} updated ({Skipped} skipped, no GsisId)",
+                season, inserted, updated, stats.Count - inserted - updated);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

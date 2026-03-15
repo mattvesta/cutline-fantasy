@@ -62,13 +62,28 @@ function logout() {
         >
           Players
         </RouterLink>
+        <RouterLink
+          v-if="auth.isAdmin"
+          to="/admin"
+          class="text-sm px-3 py-1.5 rounded-md transition-colors"
+          :style="route.path.startsWith('/admin')
+            ? 'color: var(--text); background: rgba(255,255,255,0.07)'
+            : 'color: var(--text-muted)'"
+        >
+          Admin
+        </RouterLink>
       </nav>
 
       <!-- Auth area -->
       <div class="flex items-center gap-3">
         <template v-if="auth.isLoggedIn">
-          <span class="text-sm hidden sm:block" style="color: var(--text-muted)">
+          <span class="text-sm hidden sm:flex items-center gap-2" style="color: var(--text-muted)">
             {{ auth.manager?.displayName }}
+            <span
+              v-if="auth.isAdmin"
+              class="text-xs font-semibold px-1.5 py-0.5 rounded"
+              style="background: rgba(227,30,36,0.15); color: var(--accent); border: 1px solid rgba(227,30,36,0.25); letter-spacing: 0.04em"
+            >ADMIN</span>
           </span>
           <button class="btn btn-ghost text-xs py-1.5 px-3" @click="logout">Sign out</button>
         </template>

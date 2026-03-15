@@ -3,6 +3,7 @@ export interface AuthManager {
   displayName: string
   email: string
   avatarUrl: string | null
+  isAdmin: boolean
 }
 
 interface AuthResponse {

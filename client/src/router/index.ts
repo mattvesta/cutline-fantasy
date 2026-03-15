@@ -10,6 +10,7 @@ const router = createRouter({
     { path: '/login',    component: () => import('../views/LoginView.vue') },
     { path: '/register', component: () => import('../views/RegisterView.vue') },
     { path: '/leagues/create', component: () => import('../views/CreateLeagueView.vue'), meta: { requiresAuth: true } },
+    { path: '/admin',   component: () => import('../views/AdminView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/players', component: () => import('../views/PlayersView.vue') },
     { path: '/players/:playerId', component: () => import('../views/PlayerDetailView.vue') },
     { path: '/managers/:managerId', component: () => import('../views/ManagerProfileView.vue') },
@@ -33,12 +34,14 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
-  if (to.meta.requiresAuth) {
-    const auth = useAuthStore()
-    if (!auth.token) {
-      return { path: '/login', query: { redirect: to.fullPath } }
-    }
+router.beforeEach(async (to) => {
+  const auth = useAuthStore()
+  if (to.meta.requiresAuth && !auth.token) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.requiresAdmin) {
+    await auth.init()
+    if (!auth.isAdmin) return { path: '/' }
   }
 })
 

@@ -111,9 +111,10 @@ public static class AuthEndpoints
         {
             Subject = new ClaimsIdentity(new[]
             {
-                new Claim("sub",   manager.Id.ToString()),
-                new Claim("email", manager.Email),
-                new Claim("name",  manager.DisplayName),
+                new Claim("sub",      manager.Id.ToString()),
+                new Claim("email",    manager.Email),
+                new Claim("name",     manager.DisplayName),
+                new Claim("is_admin", manager.IsAdmin ? "true" : "false"),
             }),
             Expires            = DateTime.UtcNow.AddDays(30),
             SigningCredentials = creds,
@@ -129,6 +130,7 @@ public static class AuthEndpoints
         displayName = m.DisplayName,
         email       = m.Email,
         avatarUrl   = m.AvatarUrl,
+        isAdmin     = m.IsAdmin,
     };
 }
 

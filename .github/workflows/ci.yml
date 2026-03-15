@@ -8,9 +8,8 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-# Uncomment when CD is enabled:
-#   REGISTRY: ghcr.io
-#   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/cutline
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/cutline
 
 jobs:
   # ── Backend ──────────────────────────────────────────────────────────────
@@ -32,6 +31,16 @@ jobs:
 
       - name: Test
         run: dotnet test --no-build -c Release --verbosity minimal
+
+      - name: Check for pending migrations
+        run: |
+          dotnet tool install --global dotnet-ef
+          dotnet ef migrations has-pending-model-changes \
+            --project src/Cutline.Infrastructure \
+            --startup-project src/Cutline.Api \
+            --no-build \
+          && echo "No pending model changes." \
+          || (echo "ERROR: Model changes detected without a migration. Run 'dotnet ef migrations add <Name>'." && exit 1)
 
   # ── Frontend ─────────────────────────────────────────────────────────────
   frontend:
@@ -126,9 +135,4 @@ jobs:
   #           cd /opt/cutline
   #           docker compose pull
   #           docker compose up -d --remove-orphans
-  #           docker compose exec -T api dotnet-ef database update \
-  #             --project src/Cutline.Infrastructure \
-  #             --startup-project src/Cutline.Api \
-  #             --no-build \
-  #             || true   # skip if EF tools not in image; prefer Migrate() at startup
   #           docker image prune -f

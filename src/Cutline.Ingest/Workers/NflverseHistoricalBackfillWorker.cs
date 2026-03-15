@@ -1,15 +1,20 @@
 namespace Cutline.Ingest.Workers;
 
+using Cutline.Core.Interfaces;
 using Cutline.Infrastructure.Sports;
 using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
-/// Runs once at startup. For each past NFL season from HistoricalStartSeason up to the
-/// season before the current one, checks whether any PlayerGameStats exist. If a season
-/// has no stats, fetches and imports the full nflverse player_stats CSV for that season.
+/// Runs once at startup. For each past NFL season, fetches nflverse roster + stats CSVs,
+/// resolves all GsisIds, and upserts PlayerGameStats rows.
 ///
-/// This is a one-pass backfill — subsequent restarts skip seasons that already have data.
-/// The current in-progress season is handled by NflverseFinalStatsWorker instead.
+/// Pipeline per season:
+///   1. Fetch roster CSV → BackfillGsisIdsAsync (fills in GsisId on existing Sleeper players)
+///   2. EnsureNflversePlayersAsync (creates Player rows for any GsisId not yet in the DB)
+///   3. Fetch stats CSV → ImportAsync
+///
+/// Steps 1+2 guarantee that every player who appears in nflverse stats has a matching
+/// Player row, so the skip count should be near zero.
 /// </summary>
 public class NflverseHistoricalBackfillWorker(
     NflverseClient nflverse,
@@ -22,21 +27,39 @@ public class NflverseHistoricalBackfillWorker(
     {
         var currentSeason = CurrentNflSeason();
 
-        for (var season = HistoricalStartSeason; season < currentSeason; season++)
+        for (var season = HistoricalStartSeason; season <= currentSeason; season++)
         {
             if (ct.IsCancellationRequested) break;
 
-            logger.LogInformation("Historical backfill: fetching season {Season}", season);
+            logger.LogInformation("Historical backfill: starting season {Season}", season);
             try
             {
-                var stats = await nflverse.FetchAllSeasonStatsAsync(season, ct);
-                logger.LogInformation("Historical backfill: {Count} rows for season {Season}", stats.Count, season);
-
                 await using var scope = scopeFactory.CreateAsyncScope();
-                var importer = scope.ServiceProvider.GetRequiredService<NflverseStatsImporter>();
-                await importer.ImportAsync(stats, ct);
+                var repo = scope.ServiceProvider.GetRequiredService<IPlayerRepository>();
 
-                logger.LogInformation("Historical backfill: season {Season} complete", season);
+                // Step 1 — fetch roster and resolve GsisIds for existing Sleeper players
+                var roster = await nflverse.FetchRosterIdMappingsAsync(season, ct);
+                logger.LogInformation("Historical backfill: {Season} — {Count} roster entries fetched", season, roster.Count);
+
+                var backfilled = await repo.BackfillGsisIdsAsync(roster, ct);
+                if (backfilled > 0)
+                    logger.LogInformation("Historical backfill: {Season} — GsisId backfilled for {Count} players", season, backfilled);
+
+                // Step 2 — create Player rows for any nflverse GsisId not yet in the DB
+                var created = await repo.EnsureNflversePlayersAsync(roster, ct);
+                if (created > 0)
+                    logger.LogInformation("Historical backfill: {Season} — {Count} new players created from nflverse roster", season, created);
+
+                // Step 3 — import stats
+                var stats = await nflverse.FetchAllSeasonStatsAsync(season, ct);
+                logger.LogInformation("Historical backfill: {Season} — {Count} stat rows fetched", season, stats.Count);
+
+                var importer = scope.ServiceProvider.GetRequiredService<NflverseStatsImporter>();
+                var (inserted, updated) = await importer.ImportAsync(stats, ct);
+
+                logger.LogInformation(
+                    "Historical backfill: season {Season} complete — {Inserted} inserted, {Updated} updated ({Skipped} skipped, no GsisId)",
+                    season, inserted, updated, stats.Count - inserted - updated);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

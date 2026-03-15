@@ -21,9 +21,9 @@ public class NflverseStatsImporter(
     // the per-team scoring layer, not here.
     private static readonly ScoringSettings PprScoring = new() { ReceptionPoints = 1m };
 
-    public async Task ImportAsync(IReadOnlyList<PlayerWeekStats> weekStats, CancellationToken ct)
+    public async Task<(int Inserted, int Updated)> ImportAsync(IReadOnlyList<PlayerWeekStats> weekStats, CancellationToken ct)
     {
-        if (weekStats.Count == 0) return;
+        if (weekStats.Count == 0) return (0, 0);
 
         // Build GsisId → Player.Id lookup for all incoming rows in one query.
         var gsisIds = weekStats.Select(s => s.GsisId).Distinct().ToHashSet();
@@ -39,6 +39,9 @@ public class NflverseStatsImporter(
         var byWeek = weekStats
             .Where(s => playerIdLookup.ContainsKey(s.GsisId))
             .GroupBy(s => (s.Season, s.Week));
+
+        var totalInserted = 0;
+        var totalUpdated  = 0;
 
         foreach (var group in byWeek)
         {
@@ -57,6 +60,7 @@ public class NflverseStatsImporter(
                 if (existing.TryGetValue(playerId, out var record))
                 {
                     Apply(ws, record);
+                    totalUpdated++;
                 }
                 else
                 {
@@ -69,11 +73,14 @@ public class NflverseStatsImporter(
                     };
                     Apply(ws, record);
                     db.PlayerGameStats.Add(record);
+                    totalInserted++;
                 }
             }
 
             await db.SaveChangesAsync(ct);
         }
+
+        return (totalInserted, totalUpdated);
     }
 
     private void Apply(PlayerWeekStats ws, PlayerGameStats gs)

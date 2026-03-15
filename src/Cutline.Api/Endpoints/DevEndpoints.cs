@@ -15,12 +15,17 @@ public static class DevEndpoints
     {
         var group = app.MapGroup("/api/dev");
 
-        group.MapPost("/seed", async (CutlineDbContext db, IPasswordHasher<Manager> hasher, CancellationToken ct) =>
+        group.MapPost("/seed", async (
+            CutlineDbContext db,
+            IPasswordHasher<Manager> hasher,
+            ILiveScoringService scoring,
+            IHubContext<ScoringHub> hub,
+            CancellationToken ct) =>
         {
             if (db.Leagues.Any() || db.Managers.Any())
                 return Results.Ok(new { message = "Already seeded." });
 
-            // Pull top-ADP players by position
+            // ── Players ───────────────────────────────────────────────────────
             var qbs  = await db.Players.Where(p => p.Position == "QB"  && p.Adp != null).OrderBy(p => p.Adp).Take(16).ToListAsync(ct);
             var rbs  = await db.Players.Where(p => p.Position == "RB"  && p.Adp != null).OrderBy(p => p.Adp).Take(32).ToListAsync(ct);
             var wrs  = await db.Players.Where(p => p.Position == "WR"  && p.Adp != null).OrderBy(p => p.Adp).Take(32).ToListAsync(ct);
@@ -31,7 +36,21 @@ public static class DevEndpoints
             if (qbs.Count < 8 || rbs.Count < 16 || wrs.Count < 16 || tes.Count < 8)
                 return Results.BadRequest(new { message = "Not enough players in DB. Run Sleeper sync first." });
 
-            // Create managers (one per team + the commissioner is manager[0])
+            // ── Admin account ─────────────────────────────────────────────────
+            const string adminEmail    = "admin@cutline.app";
+            const string adminPassword = "cutline-admin-2025";
+            var admin = new Manager
+            {
+                Id          = Guid.NewGuid(),
+                DisplayName = "Admin",
+                Email       = adminEmail,
+                IsAdmin     = true,
+                CreatedAt   = DateTime.UtcNow,
+            };
+            admin.PasswordHash = hasher.HashPassword(admin, adminPassword);
+            db.Managers.Add(admin);
+
+            // ── League managers (commissioner is index 0) ─────────────────────
             var managerSeeds = new[]
             {
                 ("Commissioner Chris", "chris@example.com"),
@@ -46,34 +65,23 @@ public static class DevEndpoints
 
             var managers = managerSeeds.Select((s, i) =>
             {
-                var m = new Manager
-                {
-                    Id          = Guid.NewGuid(),
-                    DisplayName = s.Item1,
-                    Email       = s.Item2,
-                    CreatedAt   = DateTime.UtcNow,
-                };
+                var m = new Manager { Id = Guid.NewGuid(), DisplayName = s.Item1, Email = s.Item2, CreatedAt = DateTime.UtcNow };
                 m.PasswordHash = hasher.HashPassword(m, "password");
                 return m;
             }).ToList();
 
             await db.Managers.AddRangeAsync(managers, ct);
 
+            // ── League ────────────────────────────────────────────────────────
             var league = new League
             {
                 Id     = Guid.NewGuid(),
                 Name   = "Cutline Test League 2025",
                 Season = 2025,
                 Status = LeagueStatus.Active,
-                RosterSettings = new RosterSettings
-                {
-                    UseFaab    = true,
-                    FaabBudget = 100m,
-                    MinFaabBid = 0m,
-                },
+                RosterSettings = new RosterSettings { UseFaab = true, FaabBudget = 100m, MinFaabBid = 0m },
             };
 
-            // Create league memberships — first manager is commissioner
             for (var i = 0; i < managers.Count; i++)
             {
                 league.LeagueManagers.Add(new LeagueManager
@@ -103,7 +111,6 @@ public static class DevEndpoints
                     ManagerId   = managers[i].Id,
                 };
 
-                // Starters (round-robin draft order per position)
                 team.RosterSlots.Add(Slot(team.Id, qbs[i],         SlotType.QB,  isStarter: true));
                 team.RosterSlots.Add(Slot(team.Id, rbs[i * 2],     SlotType.RB,  isStarter: true));
                 team.RosterSlots.Add(Slot(team.Id, rbs[i * 2 + 1], SlotType.RB,  isStarter: true));
@@ -113,7 +120,6 @@ public static class DevEndpoints
                 team.RosterSlots.Add(Slot(team.Id, ks.Count  > i ? ks[i]   : rbs[i * 2], SlotType.K,   isStarter: true));
                 team.RosterSlots.Add(Slot(team.Id, defs.Count > i ? defs[i] : wrs[i * 2], SlotType.DEF, isStarter: true));
 
-                // Bench (6 spots)
                 team.RosterSlots.Add(Slot(team.Id, rbs.Count  > 16 + i ? rbs[16 + i]  : rbs[i],     SlotType.Bench, isStarter: false));
                 team.RosterSlots.Add(Slot(team.Id, wrs.Count  > 16 + i ? wrs[16 + i]  : wrs[i],     SlotType.Bench, isStarter: false));
                 team.RosterSlots.Add(Slot(team.Id, tes.Count  > 8  + i ? tes[8  + i]  : tes[i],     SlotType.Bench, isStarter: false));
@@ -127,7 +133,70 @@ public static class DevEndpoints
             db.Leagues.Add(league);
             await db.SaveChangesAsync(ct);
 
-            return Results.Ok(new { leagueId = league.Id, teams = league.Teams.Count, managers = managers.Count });
+            // ── Week 1 with initial scores ────────────────────────────────────
+            var week = new Week { Id = Guid.NewGuid(), LeagueId = league.Id, WeekNumber = 1, Status = WeekStatus.InProgress };
+            db.Weeks.Add(week);
+            await db.SaveChangesAsync(ct);
+
+            var rng      = new Random(42);
+            var allStats = new List<PlayerGameStats>();
+
+            // Reload teams with player data for score seeding
+            var teamsWithPlayers = await db.Teams
+                .Include(t => t.RosterSlots).ThenInclude(rs => rs.Player)
+                .Where(t => t.LeagueId == league.Id)
+                .ToListAsync(ct);
+
+            foreach (var team in teamsWithPlayers)
+            {
+                foreach (var slot in team.RosterSlots.Where(rs => rs.IsStarter && rs.Player is not null))
+                {
+                    var p    = slot.Player!;
+                    var stat = new PlayerGameStats
+                    {
+                        PlayerId    = p.Id,
+                        Season      = league.Season,
+                        WeekNumber  = week.WeekNumber,
+                        GameStatus  = GameStatus.InProgress,
+                        Opponent    = $"vs {PickOpponent(rng)}",
+                        LastUpdated = DateTime.UtcNow,
+                    };
+                    PopulateMockStats(p.Position, stat, rng, partial: true);
+                    stat.Points = scoring.CalculatePoints(stat, league.ScoringSettings);
+                    allStats.Add(stat);
+                }
+            }
+
+            await scoring.UpsertRangeAsync(allStats, ct);
+
+            foreach (var team in teamsWithPlayers)
+            {
+                var pts     = await scoring.GetTeamStarterPointsAsync(team.Id, league.Season, week.WeekNumber, ct);
+                var payload = new { teamId = team.Id, points = pts };
+                await hub.Clients.Group($"team:{team.Id}").SendAsync("TeamScoreUpdate", payload, ct);
+                await hub.Clients.Group($"league:{league.Id}").SendAsync("TeamScoreUpdate", payload, ct);
+            }
+
+            return Results.Ok(new
+            {
+                leagueId       = league.Id,
+                teams          = league.Teams.Count,
+                managers       = managers.Count,
+                adminEmail,
+                adminPassword,
+                playersSeeded  = allStats.Count,
+            });
+        });
+
+        // GET /api/dev/leagues — all leagues in the system for admin visibility
+        group.MapGet("/leagues", async (CutlineDbContext db, CancellationToken ct) =>
+        {
+            var leagues = await db.Leagues
+                .Include(l => l.Teams)
+                .Include(l => l.LeagueManagers).ThenInclude(lm => lm.Manager)
+                .OrderByDescending(l => l.Season).ThenBy(l => l.Name)
+                .ToListAsync(ct);
+            return Results.Ok(leagues);
         });
 
         // POST /api/dev/import-player-stats?season=2024
@@ -137,26 +206,45 @@ public static class DevEndpoints
             int season,
             NflverseClient nflverse,
             NflverseStatsImporter importer,
-            ILoggerFactory loggerFactory,
+            IPlayerRepository repo,
             CancellationToken ct) =>
         {
-            var logger = loggerFactory.CreateLogger("DevEndpoints");
-            logger.LogInformation("Dev: importing player stats for season {Season}", season);
-            var stats = await nflverse.FetchAllSeasonStatsAsync(season, ct);
-            logger.LogInformation("Dev: fetched {Count} rows for season {Season}", stats.Count, season);
-            await importer.ImportAsync(stats, ct);
-            return Results.Ok(new { season, rowsFetched = stats.Count });
+            var roster = await nflverse.FetchRosterIdMappingsAsync(season, ct);
+            var backfilled = await repo.BackfillGsisIdsAsync(roster, ct);
+            var created    = await repo.EnsureNflversePlayersAsync(roster, ct);
+            var stats      = await nflverse.FetchAllSeasonStatsAsync(season, ct);
+            var (inserted, updated) = await importer.ImportAsync(stats, ct);
+            return Results.Ok(new
+            {
+                season,
+                rosterEntries  = roster.Count,
+                gsisBackfilled = backfilled,
+                playersCreated = created,
+                statRowsFetched = stats.Count,
+                inserted,
+                updated,
+                skipped = stats.Count - inserted - updated,
+            });
         });
 
         group.MapDelete("/seed", async (CutlineDbContext db, CancellationToken ct) =>
         {
-            // DraftPicks → Team is Restrict; delete picks before teams/leagues
+            // Delete in FK-safe order. Players and PlayerGameStats are intentionally preserved.
+            db.ChatMessages.RemoveRange(db.ChatMessages);
+            db.TradeItems.RemoveRange(db.TradeItems);
+            db.Trades.RemoveRange(db.Trades);
+            db.WaiverClaims.RemoveRange(db.WaiverClaims);
             db.DraftPicks.RemoveRange(db.DraftPicks);
-            await db.SaveChangesAsync(ct);
+            db.Drafts.RemoveRange(db.Drafts);
+            db.TeamScores.RemoveRange(db.TeamScores);
+            db.RosterSlots.RemoveRange(db.RosterSlots);
+            db.Teams.RemoveRange(db.Teams);
+            db.Weeks.RemoveRange(db.Weeks);
+            db.LeagueManagers.RemoveRange(db.LeagueManagers);
             db.Leagues.RemoveRange(db.Leagues);
             db.Managers.RemoveRange(db.Managers);
             await db.SaveChangesAsync(ct);
-            return Results.Ok(new { message = "Seed data cleared." });
+            return Results.Ok(new { message = "All generated data cleared. Players and stats preserved." });
         });
 
         // ── Draft seed ────────────────────────────────────────────────────────

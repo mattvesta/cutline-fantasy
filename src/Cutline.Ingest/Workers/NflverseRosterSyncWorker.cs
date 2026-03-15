@@ -48,12 +48,15 @@ public class NflverseRosterSyncWorker : BackgroundService
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var repo = scope.ServiceProvider.GetRequiredService<IPlayerRepository>();
                 await repo.PatchIdsAsync(patches, ct);
-
-                _logger.LogInformation("nflverse roster sync complete — {Count} players patched", patches.Count);
+                _logger.LogInformation("nflverse roster sync: {Count} players patched", patches.Count);
 
                 var backfilled = await repo.BackfillGsisIdsAsync(mappings, ct);
                 if (backfilled > 0)
-                    _logger.LogInformation("GsisId backfill: {Count} players updated", backfilled);
+                    _logger.LogInformation("nflverse roster sync: GsisId backfilled for {Count} players", backfilled);
+
+                var created = await repo.EnsureNflversePlayersAsync(mappings, ct);
+                if (created > 0)
+                    _logger.LogInformation("nflverse roster sync: {Count} new players created from nflverse roster", created);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

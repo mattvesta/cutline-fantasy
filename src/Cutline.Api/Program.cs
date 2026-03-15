@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using Cutline.Api.Endpoints;
 using Cutline.Api.Hubs;
+using Cutline.Api.Services;
 using Cutline.Core.Entities;
 using Cutline.Core.Interfaces;
 using Cutline.Infrastructure.Data;
@@ -29,6 +30,7 @@ builder.Services.AddScoped<IWaiverProcessor, WaiverProcessor>();
 builder.Services.AddScoped<IDraftService, DraftService>();
 builder.Services.AddScoped<ILiveScoringService, LiveScoringService>();
 builder.Services.AddHttpClient<NflverseClient>();
+builder.Services.AddHostedService<AdminPromoterService>();
 builder.Services.AddScoped<NflverseStatsImporter>();
 builder.Services.AddScoped<IPasswordHasher<Manager>, PasswordHasher<Manager>>();
 
