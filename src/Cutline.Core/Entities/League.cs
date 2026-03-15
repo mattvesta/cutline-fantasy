@@ -10,6 +10,7 @@ public class League
     public RosterSettings RosterSettings { get; set; } = new();
     public ICollection<Team> Teams { get; set; } = new List<Team>();
     public ICollection<Week> Weeks { get; set; } = new List<Week>();
+    public ICollection<LeagueManager> LeagueManagers { get; set; } = new List<LeagueManager>();
 }
 
 public enum LeagueStatus { Setup, Drafting, Active, Completed }

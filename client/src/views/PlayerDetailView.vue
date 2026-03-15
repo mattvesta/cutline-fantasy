@@ -69,7 +69,7 @@ function formatAdp(adp: number): string {
 
         <div>
           <div class="flex items-baseline gap-3 mb-1">
-            <h1 class="text-3xl font-bold">{{ player.firstName }} {{ player.lastName }}</h1>
+            <h1 class="text-3xl font-bold tracking-tight" style="letter-spacing: -0.03em">{{ player.firstName }} {{ player.lastName }}</h1>
             <span v-if="player.jerseyNumber" class="text-gray-500 text-xl">#{{ player.jerseyNumber }}</span>
           </div>
           <div class="flex items-center gap-3 text-sm mb-3">

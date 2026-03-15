@@ -166,14 +166,53 @@ const STATUS_LABEL: Record<string, string> = {
 
     <template v-else-if="team">
       <!-- Header -->
-      <div class="flex items-start justify-between mb-8">
+      <div class="flex items-start justify-between mb-6">
         <div>
-          <h1 class="text-3xl font-bold mb-1">{{ team.name }}</h1>
-          <p class="text-sm text-[var(--text-muted)]">{{ team.ownerUserId }}</p>
+          <h1 class="text-3xl font-bold tracking-tight" style="letter-spacing: -0.03em">{{ team.name }}</h1>
+          <!-- Manager card -->
+          <RouterLink
+            v-if="team.manager"
+            :to="`/managers/${team.manager.id}`"
+            class="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-colors"
+            style="background: var(--surface-raised)"
+            onmouseover="this.style.background='var(--border)'"
+            onmouseout="this.style.background='var(--surface-raised)'"
+          >
+            <div
+              class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+              style="background: var(--accent-dim); color: var(--accent)"
+            >
+              {{ team.manager.displayName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() }}
+            </div>
+            <span class="text-sm font-medium">{{ team.manager.displayName }}</span>
+          </RouterLink>
+          <span v-else class="text-sm text-[var(--text-muted)]">{{ team.ownerUserId || 'Unassigned' }}</span>
         </div>
         <div class="flex items-center gap-3 mt-1">
           <span v-if="isSaving" class="text-xs text-[var(--text-muted)] animate-pulse">Saving…</span>
           <span v-if="saveError" class="text-xs text-[var(--red)]">{{ saveError }}</span>
+          <RouterLink
+            :to="`/leagues/${leagueId}/teams/${teamId}/waivers`"
+            class="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
+            style="background: var(--surface-raised); color: var(--text-secondary); border: 1px solid var(--border)"
+            onmouseover="this.style.color='white'; this.style.borderColor='var(--border-hover)'"
+            onmouseout="this.style.color='var(--text-secondary)'; this.style.borderColor='var(--border)'"
+          >
+            Waivers
+          </RouterLink>
+          <RouterLink
+            :to="`/leagues/${leagueId}/teams/${teamId}/live`"
+            class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
+            style="background: rgba(34,197,94,0.1); color: #22c55e; border: 1px solid rgba(34,197,94,0.2)"
+            onmouseover="this.style.background='rgba(34,197,94,0.18)'"
+            onmouseout="this.style.background='rgba(34,197,94,0.1)'"
+          >
+            <span class="relative flex h-1.5 w-1.5">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+              <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
+            </span>
+            Watch Live
+          </RouterLink>
           <span v-if="team.isEliminated" class="text-xs px-2.5 py-1 rounded-full bg-red-500/10 text-red-400">
             Eliminated — Week {{ team.eliminatedWeek }}
           </span>

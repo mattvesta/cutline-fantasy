@@ -5,8 +5,8 @@ import AppNav from './components/AppNav.vue'
 <template>
   <div class="min-h-screen" style="background: var(--bg); color: var(--text)">
     <AppNav />
-    <!-- pt-14 offsets the fixed nav -->
-    <div class="pt-14">
+    <!-- pt-16 offsets the fixed nav -->
+    <div class="pt-16">
       <RouterView />
     </div>
   </div>

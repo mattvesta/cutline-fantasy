@@ -123,7 +123,7 @@ const columns: { key: SortableColumn; label: string }[] = [
     </RouterLink>
 
     <div class="flex items-start justify-between mb-6">
-      <h1 class="text-3xl font-bold">Players</h1>
+      <h1 class="text-3xl font-bold tracking-tight" style="letter-spacing: -0.03em">Players</h1>
       <span v-if="result && !isLoading" class="text-sm text-gray-500 mt-2">
         {{ result.totalCount.toLocaleString() }} players
       </span>

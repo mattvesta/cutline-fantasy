@@ -12,7 +12,10 @@ public class LeagueRepository : ILeagueRepository
     public LeagueRepository(CutlineDbContext db) => _db = db;
 
     public async Task<League?> GetByIdAsync(Guid leagueId, CancellationToken ct = default)
-        => await _db.Leagues.Include(l => l.Teams).FirstOrDefaultAsync(l => l.Id == leagueId, ct);
+        => await _db.Leagues
+            .Include(l => l.Teams).ThenInclude(t => t.Manager)
+            .Include(l => l.LeagueManagers).ThenInclude(lm => lm.Manager)
+            .FirstOrDefaultAsync(l => l.Id == leagueId, ct);
 
     public async Task<IReadOnlyList<League>> GetAllAsync(CancellationToken ct = default)
         => await _db.Leagues.ToListAsync(ct);

@@ -23,6 +23,83 @@ namespace Cutline.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Cutline.Core.Entities.Draft", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CurrentPickNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("CurrentPickStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("LeagueId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("PickTimeLimitSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LeagueId");
+
+                    b.ToTable("Drafts");
+                });
+
+            modelBuilder.Entity("Cutline.Core.Entities.DraftPick", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DraftId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsAutoPick")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("PickNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("PickedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PlayerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Round")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RoundPick")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId");
+
+                    b.HasIndex("TeamId");
+
+                    b.HasIndex("DraftId", "PickNumber")
+                        .IsUnique();
+
+                    b.ToTable("DraftPicks");
+                });
+
             modelBuilder.Entity("Cutline.Core.Entities.League", b =>
                 {
                     b.Property<Guid>("Id")
@@ -121,6 +198,58 @@ namespace Cutline.Infrastructure.Migrations
                     b.ToTable("Leagues");
                 });
 
+            modelBuilder.Entity("Cutline.Core.Entities.LeagueManager", b =>
+                {
+                    b.Property<Guid>("LeagueId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ManagerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsCommissioner")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("LeagueId", "ManagerId");
+
+                    b.HasIndex("ManagerId");
+
+                    b.ToTable("LeagueManagers");
+                });
+
+            modelBuilder.Entity("Cutline.Core.Entities.Manager", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AvatarUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("Managers");
+                });
+
             modelBuilder.Entity("Cutline.Core.Entities.Player", b =>
                 {
                     b.Property<Guid>("Id")
@@ -208,6 +337,114 @@ namespace Cutline.Infrastructure.Migrations
                     b.ToTable("Players");
                 });
 
+            modelBuilder.Entity("Cutline.Core.Entities.PlayerGameStats", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("DefensiveInterceptions")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("DefensiveTDs")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ExtraPointsAttempted")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ExtraPointsMade")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("FieldGoalsAttempted")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("FieldGoalsMade")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Fumbles")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("FumblesRecovered")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("GameStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("Interceptions")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("LongFieldGoal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Opponent")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("PassingAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("PassingCompletions")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("PassingTDs")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("PassingYards")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Points")
+                        .HasColumnType("decimal(8,2)");
+
+                    b.Property<int?>("PointsAllowed")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ReceivingTDs")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ReceivingYards")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Receptions")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RushingAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RushingTDs")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RushingYards")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Sacks")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Safeties")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Season")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Targets")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("WeekNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId", "Season", "WeekNumber")
+                        .IsUnique();
+
+                    b.ToTable("PlayerGameStats");
+                });
+
             modelBuilder.Entity("Cutline.Core.Entities.RosterSlot", b =>
                 {
                     b.Property<Guid>("Id")
@@ -250,6 +487,9 @@ namespace Cutline.Infrastructure.Migrations
                     b.Property<Guid>("LeagueId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ManagerId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -262,8 +502,11 @@ namespace Cutline.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("LeagueId", "OwnerUserId")
-                        .IsUnique();
+                    b.HasIndex("ManagerId");
+
+                    b.HasIndex("LeagueId", "ManagerId")
+                        .IsUnique()
+                        .HasFilter("\"ManagerId\" IS NOT NULL");
 
                     b.ToTable("Teams");
                 });
@@ -368,6 +611,73 @@ namespace Cutline.Infrastructure.Migrations
                     b.ToTable("Weeks");
                 });
 
+            modelBuilder.Entity("Cutline.Core.Entities.Draft", b =>
+                {
+                    b.HasOne("Cutline.Core.Entities.League", "League")
+                        .WithMany()
+                        .HasForeignKey("LeagueId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("League");
+                });
+
+            modelBuilder.Entity("Cutline.Core.Entities.DraftPick", b =>
+                {
+                    b.HasOne("Cutline.Core.Entities.Draft", "Draft")
+                        .WithMany("Picks")
+                        .HasForeignKey("DraftId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Cutline.Core.Entities.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Cutline.Core.Entities.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Draft");
+
+                    b.Navigation("Player");
+
+                    b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("Cutline.Core.Entities.LeagueManager", b =>
+                {
+                    b.HasOne("Cutline.Core.Entities.League", "League")
+                        .WithMany("LeagueManagers")
+                        .HasForeignKey("LeagueId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Cutline.Core.Entities.Manager", "Manager")
+                        .WithMany("LeagueManagers")
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("League");
+
+                    b.Navigation("Manager");
+                });
+
+            modelBuilder.Entity("Cutline.Core.Entities.PlayerGameStats", b =>
+                {
+                    b.HasOne("Cutline.Core.Entities.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Player");
+                });
+
             modelBuilder.Entity("Cutline.Core.Entities.RosterSlot", b =>
                 {
                     b.HasOne("Cutline.Core.Entities.Player", "Player")
@@ -393,7 +703,14 @@ namespace Cutline.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Cutline.Core.Entities.Manager", "Manager")
+                        .WithMany("Teams")
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("League");
+
+                    b.Navigation("Manager");
                 });
 
             modelBuilder.Entity("Cutline.Core.Entities.TeamScore", b =>
@@ -467,11 +784,25 @@ namespace Cutline.Infrastructure.Migrations
                     b.Navigation("League");
                 });
 
+            modelBuilder.Entity("Cutline.Core.Entities.Draft", b =>
+                {
+                    b.Navigation("Picks");
+                });
+
             modelBuilder.Entity("Cutline.Core.Entities.League", b =>
                 {
+                    b.Navigation("LeagueManagers");
+
                     b.Navigation("Teams");
 
                     b.Navigation("Weeks");
+                });
+
+            modelBuilder.Entity("Cutline.Core.Entities.Manager", b =>
+                {
+                    b.Navigation("LeagueManagers");
+
+                    b.Navigation("Teams");
                 });
 
             modelBuilder.Entity("Cutline.Core.Entities.Team", b =>

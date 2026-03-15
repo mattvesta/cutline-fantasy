@@ -56,19 +56,42 @@ const slots = ref({
 // ─── League size ─────────────────────────────────────────────────────
 const teamCount = ref(10)
 
+// ─── Waivers ─────────────────────────────────────────────────────────
+const useFaab    = ref(true)
+const faabBudget = ref(100)
+
 // ─── Submit ──────────────────────────────────────────────────────────
 const isSubmitting = ref(false)
 const submitError  = ref<string | null>(null)
 
 const canSubmit = computed(() => name.value.trim().length >= 2)
 
+const RECEPTION_PTS: Record<ScoringPreset, number> = {
+  standard: 0, 'half-ppr': 0.5, ppr: 1,
+}
+
 async function submit() {
   if (!canSubmit.value) return
   isSubmitting.value = true
   submitError.value  = null
   try {
-    // Logo upload is stubbed — wire to a storage endpoint when ready
-    const league = await leaguesApi.create({ name: name.value.trim(), season: season.value })
+    const league = await leaguesApi.create({
+      name:   name.value.trim(),
+      season: season.value,
+      receptionPoints:  RECEPTION_PTS[scoringPreset.value],
+      qbSlots:          slots.value.QB,
+      rbSlots:          slots.value.RB,
+      wrSlots:          slots.value.WR,
+      teSlots:          slots.value.TE,
+      flexSlots:        slots.value.Flex,
+      superFlexSlots:   slots.value.SuperFlex,
+      kSlots:           slots.value.K,
+      defSlots:         slots.value.DEF,
+      benchSlots:       slots.value.Bench,
+      irSlots:          slots.value.IR,
+      useFaab:          useFaab.value,
+      faabBudget:       useFaab.value ? faabBudget.value : 0,
+    })
     router.push(`/leagues/${league.id}`)
   } catch (e) {
     submitError.value = e instanceof Error ? e.message : 'Failed to create league'
@@ -87,7 +110,7 @@ const seasons = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() + 1
       ← Leagues
     </RouterLink>
 
-    <h1 class="text-3xl font-bold mb-1">Create a League</h1>
+    <h1 class="text-3xl font-bold tracking-tight" style="letter-spacing: -0.03em">Create a League</h1>
     <p class="text-[var(--text-muted)] text-sm mb-10">
       Set up your guillotine league. You can change most settings before the season starts.
     </p>
@@ -241,6 +264,81 @@ const seasons = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() + 1
 
       <hr class="divider" />
 
+      <!-- ── Waivers ── -->
+      <section>
+        <h2 class="text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-5">Waiver Wire</h2>
+
+        <!-- FAAB toggle -->
+        <div class="flex items-start justify-between gap-6 mb-5">
+          <div>
+            <p class="text-sm font-medium mb-0.5">Free Agent Acquisition Budget (FAAB)</p>
+            <p class="text-xs text-[var(--text-muted)]">
+              Teams bid blindly on free agents each week. Without FAAB, claims process in priority order.
+            </p>
+          </div>
+          <!-- Toggle switch -->
+          <button
+            type="button"
+            class="relative shrink-0 w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none mt-0.5"
+            :style="useFaab
+              ? 'background: var(--accent)'
+              : 'background: var(--border)'"
+            :aria-checked="useFaab"
+            role="switch"
+            @click="useFaab = !useFaab"
+          >
+            <span
+              class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200"
+              :style="useFaab ? 'transform: translateX(1.25rem)' : ''"
+            />
+          </button>
+        </div>
+
+        <!-- Budget amount (shown when FAAB is on) -->
+        <Transition name="slide">
+          <div v-if="useFaab" class="card p-4">
+            <label class="label mb-3 block">Starting FAAB Budget</label>
+            <div class="flex items-center gap-4">
+              <div class="flex items-center gap-2 flex-1 max-w-xs">
+                <span class="text-[var(--text-muted)] font-medium">$</span>
+                <input
+                  v-model.number="faabBudget"
+                  type="number"
+                  min="1"
+                  max="10000"
+                  step="1"
+                  class="input flex-1"
+                />
+              </div>
+              <!-- Quick presets -->
+              <div class="flex gap-2">
+                <button
+                  v-for="preset in [50, 100, 200, 500]"
+                  :key="preset"
+                  type="button"
+                  class="text-xs px-2.5 py-1 rounded transition-colors"
+                  :style="faabBudget === preset
+                    ? 'background: var(--accent-dim); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent)'
+                    : 'background: var(--surface-raised); color: var(--text-muted); border: 1px solid var(--border)'"
+                  @click="faabBudget = preset"
+                >
+                  ${{ preset }}
+                </button>
+              </div>
+            </div>
+            <p class="text-xs text-[var(--text-muted)] mt-2">
+              Each team starts with ${{ faabBudget }} to spend on free agents over the season. Unspent budget does not carry over.
+            </p>
+          </div>
+        </Transition>
+
+        <p v-if="!useFaab" class="text-xs text-[var(--text-muted)] mt-1">
+          Priority waivers: the team with the highest waiver priority gets first pick of free agents each week.
+        </p>
+      </section>
+
+      <hr class="divider" />
+
       <!-- Submit -->
       <div>
         <p v-if="submitError" class="text-sm text-[var(--red)] mb-4">{{ submitError }}</p>
@@ -262,3 +360,22 @@ const seasons = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() + 1
     </form>
   </div>
 </template>
+
+<style scoped>
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+.slide-enter-from,
+.slide-leave-to {
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0;
+}
+.slide-enter-to,
+.slide-leave-from {
+  opacity: 1;
+  max-height: 200px;
+}
+</style>

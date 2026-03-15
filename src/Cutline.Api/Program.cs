@@ -14,10 +14,13 @@ builder.Services.AddDbContext<CutlineDbContext>(options =>
 
 builder.Services.AddScoped<ILeagueRepository, LeagueRepository>();
 builder.Services.AddScoped<ITeamRepository, TeamRepository>();
+builder.Services.AddScoped<IManagerRepository, ManagerRepository>();
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
 builder.Services.AddScoped<IWeekRepository, WeekRepository>();
 builder.Services.AddScoped<IGuillotineEngine, GuillotineEngine>();
 builder.Services.AddScoped<IWaiverProcessor, WaiverProcessor>();
+builder.Services.AddScoped<IDraftService, DraftService>();
+builder.Services.AddScoped<ILiveScoringService, LiveScoringService>();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -34,10 +37,15 @@ app.MapLeagues();
 app.MapTeams();
 app.MapWeeks();
 app.MapPlayers();
+app.MapManagers();
+app.MapDraftEndpoints();
+app.MapScoringEndpoints();
+app.MapWaiverEndpoints();
 
 if (app.Environment.IsDevelopment())
     app.MapDevEndpoints();
 
 app.MapHub<ScoringHub>("/hubs/scoring");
+app.MapHub<DraftHub>("/hubs/draft");
 
 app.Run();

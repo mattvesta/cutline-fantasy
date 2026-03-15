@@ -10,8 +10,17 @@ public class TeamConfiguration : IEntityTypeConfiguration<Team>
     {
         builder.HasKey(t => t.Id);
         builder.Property(t => t.Name).IsRequired().HasMaxLength(100);
-        builder.Property(t => t.OwnerUserId).IsRequired().HasMaxLength(100);
+        builder.Property(t => t.OwnerUserId).HasMaxLength(100);
 
-        builder.HasIndex(t => new { t.LeagueId, t.OwnerUserId }).IsUnique();
+        builder.HasOne(t => t.Manager)
+            .WithMany(m => m.Teams)
+            .HasForeignKey(t => t.ManagerId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // One manager can only have one team per league
+        builder.HasIndex(t => new { t.LeagueId, t.ManagerId })
+            .IsUnique()
+            .HasFilter("\"ManagerId\" IS NOT NULL");
     }
 }

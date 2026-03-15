@@ -13,4 +13,10 @@ public class ScoringHub : Hub
 
     public async Task LeaveLeague(string leagueId)
         => await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"league:{leagueId}");
+
+    public async Task JoinTeam(string teamId)
+        => await Groups.AddToGroupAsync(Context.ConnectionId, $"team:{teamId}");
+
+    public async Task LeaveTeam(string teamId)
+        => await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"team:{teamId}");
 }
