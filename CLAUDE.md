@@ -140,15 +140,50 @@ Redis serves two purposes:
 
 Features in `Cutline.AI` and anything behind the `hosted-only` label in issues are exclusive to the hosted platform. All default data sources (Sleeper, nflverse, ESPN unofficial) are free and require no API keys. The hosted platform uses a managed feed. Keep these paths cleanly separated.
 
+### API endpoints
+
+Key endpoint files in `src/Cutline.Api/Endpoints/`:
+
+- **`LeagueEndpoints.cs`** — CRUD for leagues. `POST /api/leagues` accepts `CreateLeagueRequest` with full roster slots, scoring preset, `UseFaab`, and `FaabBudget` set at creation time.
+- **`ScoringEndpoints.cs`** — Live scoring:
+  - `GET /api/leagues/{leagueId}/scoring/live` — all team point totals for the current week
+  - `GET /api/leagues/{leagueId}/scoring/teams/{teamId}` — full per-player scorecard; returns roster with `stats: null` gracefully when no active week
+  - `GET /api/leagues/{leagueId}/scoring/matchup` — all teams sorted by live points, last active team flagged `isOnCutLine`, includes eliminated teams
+  - **Important:** these endpoints query `db.Weeks` directly (not `league.Weeks`) because `LeagueRepository.GetByIdAsync` never eager-loads `Weeks`.
+- **`WaiverEndpoints.cs`** — Waiver wire:
+  - `GET /api/leagues/{leagueId}/waivers?teamId=&position=&search=&page=` — available free agents (paginated/filtered), pending claims, recent results, team roster, FAAB balance
+  - `POST /api/leagues/{leagueId}/waivers/claims` — submit a claim; auto-detects the open week
+  - `DELETE /api/leagues/{leagueId}/waivers/claims/{claimId}?teamId=` — cancel a pending claim
+  - Optional query param `int page = 1` must come **after** `CancellationToken ct` in the lambda to avoid CS1737.
+
+### SignalR
+
+`ScoringHub` at `/hubs/scoring`. Client methods: `JoinLeague(leagueId)` / `LeaveLeague`, `JoinTeam(teamId)` / `LeaveTeam`.
+
+Server events: `TeamScoreUpdate { teamId, totalPoints }`, `PlayerStatUpdate { teamId, playerId, stats, points }`.
+
+**Always broadcast `TeamScoreUpdate` to both `team:{id}` AND `league:{leagueId}` groups** — managers viewing other teams' live pages subscribe to the league group but not every team group, so they need the broadcast on the league channel to update their leaderboard.
+
+### Frontend views
+
+Key views added in `client/src/views/`:
+- **`LiveTeamView.vue`** — `/leagues/:leagueId/teams/:teamId/live` — live per-player scorecard with league leaderboard sidebar. Joins both `team:{teamId}` and `league:{leagueId}` SignalR groups.
+- **`WeeklyMatchupView.vue`** — `/leagues/:leagueId/matchup` — all teams' live scores with dashed cut-line divider and red callout for the team on the cut line. Joins `league:{leagueId}`.
+- **`WaiverWireView.vue`** — `/leagues/:leagueId/teams/:teamId/waivers` — browse free agents, submit FAAB blind-auction bids (large `$X` input + slider + quick-bid presets) or priority claims, view claim results.
+
 ### Dev seed
 
-`POST /api/dev/seed` creates a test league with 8 teams and seeds players onto their rosters from the DB. **Requires Sleeper sync to have run first** — it queries top-ADP players by position and returns HTTP 400 if fewer than 8 QBs or 16 RBs/WRs are found. Each team gets 8 starters (QB, RB×2, WR×2, TE, K, DEF) + 6 bench spots distributed round-robin by ADP rank. `DELETE /api/dev/seed` wipes all league data.
+`POST /api/dev/seed` creates a test league with 8 teams and seeds players onto their rosters from the DB. **Requires Sleeper sync to have run first** — it queries top-ADP players by position and returns HTTP 400 if fewer than 8 QBs or 16 RBs/WRs are found. Each team gets 8 starters (QB, RB×2, WR×2, TE, K, DEF) + 6 bench spots distributed round-robin by ADP rank. `DELETE /api/dev/seed` wipes all league data — **must delete `DraftPicks` first** before removing leagues because `DraftPick → Team` FK is `OnDelete(Restrict)`.
+
+`POST /api/dev/seed-scores` — creates a Week 8 InProgress, populates mock `PlayerGameStats`, and broadcasts `TeamScoreUpdate` to both `team:{id}` and `league:{leagueId}` groups.
+
+`POST /api/dev/simulate-score-tick` — increments a random player's stats and re-broadcasts.
 
 ### EF Core migrations
 
 `dotnet ef database update --project src/Cutline.Infrastructure --startup-project src/Cutline.Api`
 
-Current migrations (in order): `InitialCreate` → `AddPlayerMetadata` → `AddPlayerAdp` → `AddFaabSettings` → `AllowEmptyRosterSlots`.
+Current migrations (in order): `InitialCreate` → `AddPlayerMetadata` → `AddPlayerAdp` → `AddFaabSettings` → `AllowEmptyRosterSlots` → `AddPlayerGameStats`.
 
 ## License
 

@@ -178,10 +178,13 @@ Cutline is open source and welcomes contributions. The guillotine format deserve
 - [x] nflverse roster ID mapping — cross-platform ID bridge
 - [x] Guillotine engine — weekly elimination + waiver claim processing
 - [x] Player browser — paginated, sortable, searchable with ADP
-- [x] League creation flow
+- [x] League creation flow — scoring format, roster slots, FAAB settings
 - [x] Lineup management — drag-and-drop with position validation
+- [x] Live scoring via SignalR — per-player scorecard with real-time updates
+- [x] Live leaderboard — league-wide standings updating in real time
+- [x] Weekly matchup view — all teams' live scores with animated cut-line indicator
+- [x] Waiver wire — browse free agents, submit FAAB blind-auction bids or priority claims, view results
 - [ ] Draft room (snake)
-- [ ] Live scoring via SignalR
 - [ ] PWA setup + mobile install
 - [ ] AI weekly report (hosted)
 - [ ] AI trade analyzer (hosted)
