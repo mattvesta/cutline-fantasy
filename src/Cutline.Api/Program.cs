@@ -1,8 +1,10 @@
+using System.Text.Json.Serialization;
 using Cutline.Api.Endpoints;
 using Cutline.Api.Hubs;
 using Cutline.Core.Interfaces;
 using Cutline.Infrastructure.Data;
 using Cutline.Infrastructure.Repositories;
+using Cutline.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,6 +16,14 @@ builder.Services.AddScoped<ILeagueRepository, LeagueRepository>();
 builder.Services.AddScoped<ITeamRepository, TeamRepository>();
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
 builder.Services.AddScoped<IWeekRepository, WeekRepository>();
+builder.Services.AddScoped<IGuillotineEngine, GuillotineEngine>();
+builder.Services.AddScoped<IWaiverProcessor, WaiverProcessor>();
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
@@ -22,6 +32,8 @@ var app = builder.Build();
 
 app.MapLeagues();
 app.MapTeams();
+app.MapWeeks();
+app.MapPlayers();
 
 if (app.Environment.IsDevelopment())
     app.MapDevEndpoints();

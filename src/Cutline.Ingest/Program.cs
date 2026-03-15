@@ -22,8 +22,9 @@ builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
 
 builder.Services.AddHostedService<SleeperSyncWorker>();
 builder.Services.AddHostedService<NflverseRosterSyncWorker>();
-builder.Services.AddHostedService<NflverseFinalStatsWorker>();
-builder.Services.AddHostedService<EspnLiveScoringWorker>();
+// Not yet implemented — enable when clients are built out:
+// builder.Services.AddHostedService<NflverseFinalStatsWorker>();
+// builder.Services.AddHostedService<EspnLiveScoringWorker>();
 
 var host = builder.Build();
 host.Run();

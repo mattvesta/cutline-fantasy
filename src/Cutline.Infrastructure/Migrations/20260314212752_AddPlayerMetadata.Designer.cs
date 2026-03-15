@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Cutline.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Cutline.Infrastructure.Migrations
 {
     [DbContext(typeof(CutlineDbContext))]
-    partial class CutlineDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260314212752_AddPlayerMetadata")]
+    partial class AddPlayerMetadata
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -50,9 +53,6 @@ namespace Cutline.Infrastructure.Migrations
                             b1.Property<int>("DefSlots")
                                 .HasColumnType("integer");
 
-                            b1.Property<decimal>("FaabBudget")
-                                .HasColumnType("numeric");
-
                             b1.Property<int>("FlexSlots")
                                 .HasColumnType("integer");
 
@@ -76,9 +76,6 @@ namespace Cutline.Infrastructure.Migrations
 
                             b1.Property<int>("TeSlots")
                                 .HasColumnType("integer");
-
-                            b1.Property<bool>("UseFaab")
-                                .HasColumnType("boolean");
 
                             b1.Property<int>("WrSlots")
                                 .HasColumnType("integer");
@@ -126,10 +123,6 @@ namespace Cutline.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
-
-                    b.Property<decimal?>("Adp")
-                        .HasPrecision(7, 2)
-                        .HasColumnType("numeric(7,2)");
 
                     b.Property<int?>("Age")
                         .HasColumnType("integer");
@@ -217,7 +210,7 @@ namespace Cutline.Infrastructure.Migrations
                     b.Property<bool>("IsStarter")
                         .HasColumnType("boolean");
 
-                    b.Property<Guid?>("PlayerId")
+                    b.Property<Guid>("PlayerId")
                         .HasColumnType("uuid");
 
                     b.Property<int>("SlotType")
@@ -372,7 +365,9 @@ namespace Cutline.Infrastructure.Migrations
                 {
                     b.HasOne("Cutline.Core.Entities.Player", "Player")
                         .WithMany()
-                        .HasForeignKey("PlayerId");
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("Cutline.Core.Entities.Team", "Team")
                         .WithMany("RosterSlots")

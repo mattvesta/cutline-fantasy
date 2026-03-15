@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Cutline.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Cutline.Infrastructure.Migrations
 {
     [DbContext(typeof(CutlineDbContext))]
-    partial class CutlineDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260314225916_AddFaabSettings")]
+    partial class AddFaabSettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -217,7 +220,7 @@ namespace Cutline.Infrastructure.Migrations
                     b.Property<bool>("IsStarter")
                         .HasColumnType("boolean");
 
-                    b.Property<Guid?>("PlayerId")
+                    b.Property<Guid>("PlayerId")
                         .HasColumnType("uuid");
 
                     b.Property<int>("SlotType")
@@ -372,7 +375,9 @@ namespace Cutline.Infrastructure.Migrations
                 {
                     b.HasOne("Cutline.Core.Entities.Player", "Player")
                         .WithMany()
-                        .HasForeignKey("PlayerId");
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("Cutline.Core.Entities.Team", "Team")
                         .WithMany("RosterSlots")

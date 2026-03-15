@@ -16,6 +16,10 @@ public class PlayerConfiguration : IEntityTypeConfiguration<Player>
         builder.Property(p => p.NflTeam).HasMaxLength(5);
         builder.Property(p => p.SleeperId).HasMaxLength(20);
         builder.Property(p => p.EspnId).HasMaxLength(20);
+        builder.Property(p => p.College).HasMaxLength(100);
+        builder.Property(p => p.Height).HasMaxLength(10);
+        builder.Property(p => p.Weight).HasMaxLength(10);
+        builder.Property(p => p.Adp).HasPrecision(7, 2);
 
         builder.HasIndex(p => p.GsisId).IsUnique();
         builder.HasIndex(p => p.SleeperId);

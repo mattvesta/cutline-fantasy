@@ -19,8 +19,8 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/api': 'http://localhost:5000',
-      '/hubs': { target: 'ws://localhost:5000', ws: true },
+      '/api': 'http://localhost:5134',
+      '/hubs': { target: 'ws://localhost:5134', ws: true },
     },
   },
 })

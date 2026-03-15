@@ -9,32 +9,12 @@ services:
       POSTGRES_PASSWORD: cutline_dev
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cutline"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
 
-  ingest:
-    build:
-      context: .
-      dockerfile: infra/Dockerfile.ingest
-    environment:
-      - DOTNET_ENVIRONMENT=Development
-      - ConnectionStrings__Postgres=Host=db;Port=5432;Database=cutline;Username=cutline;Password=cutline_dev
-      - ConnectionStrings__Redis=redis:6379
-      - Ingest__EspnPollIntervalSeconds=60
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    restart: on-failure
 
 volumes:
   postgres_dev_data:

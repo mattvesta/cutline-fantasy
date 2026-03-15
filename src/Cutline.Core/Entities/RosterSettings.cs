@@ -13,4 +13,6 @@ public class RosterSettings
     public int BenchSlots { get; set; } = 6;
     public int IrSlots { get; set; } = 1;
     public bool TePremium { get; set; } = false;
+    public bool UseFaab { get; set; } = false;
+    public decimal FaabBudget { get; set; } = 100m;
 }

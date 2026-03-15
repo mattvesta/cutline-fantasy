@@ -21,6 +21,7 @@ public class WeekRepository : IWeekRepository
     public async Task<Week?> GetByNumberAsync(Guid leagueId, int weekNumber, CancellationToken ct = default)
         => await _db.Weeks
             .Include(w => w.TeamScores)
+            .Include(w => w.WaiverClaims)
             .FirstOrDefaultAsync(w => w.LeagueId == leagueId && w.WeekNumber == weekNumber, ct);
 
     public async Task<IReadOnlyList<Week>> GetAllAsync(Guid leagueId, CancellationToken ct = default)
@@ -31,6 +32,9 @@ public class WeekRepository : IWeekRepository
 
     public async Task AddAsync(Week week, CancellationToken ct = default)
         => await _db.Weeks.AddAsync(week, ct);
+
+    public async Task AddClaimAsync(WaiverClaim claim, CancellationToken ct = default)
+        => await _db.WaiverClaims.AddAsync(claim, ct);
 
     public async Task SaveChangesAsync(CancellationToken ct = default)
         => await _db.SaveChangesAsync(ct);
