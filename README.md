@@ -1,5 +1,7 @@
 # Cutline Fantasy
 
+[![CI](https://github.com/mattvesta/cutline-fantasy/actions/workflows/ci.yml/badge.svg)](https://github.com/mattvesta/cutline-fantasy/actions/workflows/ci.yml)
+
 > Will you make the cut?
 
 **Cutline** is an open source fantasy football platform built specifically for the guillotine format — the most addicting format in fantasy sports. Every week, the lowest scoring team is eliminated and their roster hits waivers. Survive long enough and you win everything.
