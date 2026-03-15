@@ -140,6 +140,29 @@ Redis serves two purposes:
 
 Features in `Cutline.AI` and anything behind the `hosted-only` label in issues are exclusive to the hosted platform. All default data sources (Sleeper, nflverse, ESPN unofficial) are free and require no API keys. The hosted platform uses a managed feed. Keep these paths cleanly separated.
 
+### Authentication
+
+JWT-based auth (HMAC-SHA256, 30-day expiry). Secret lives in `appsettings.json` under `Jwt:Secret` — override via environment variable in production.
+
+**`AuthEndpoints.cs`** — `/api/auth`:
+- `POST /register` — body `{ displayName, email, password }` → `{ token, manager }`
+- `POST /login` — body `{ email, password }` → `{ token, manager }`
+- `GET /me` — requires `Authorization: Bearer <token>` → current manager
+
+**Protected endpoints** (require valid JWT — `.RequireAuthorization()`): all commissioner routes, chat POST, all waiver mutations (claims, drop), all trade mutations (propose, accept, reject, cancel), lineup swap. Read endpoints (standings, scoring, chat history, player list, etc.) are public.
+
+**managerId in handlers**: read from `HttpContext.User.FindFirstValue("sub")` via `AuthEndpoints.GetManagerId(ctx)`. `JwtSecurityTokenHandler.DefaultInboundClaimTypeMap` is cleared in `Program.cs` so `"sub"` maps directly without remapping to `ClaimTypes.NameIdentifier`.
+
+**Ownership checks**: mutation endpoints on team-scoped resources verify `team.ManagerId == jwtManagerId` before proceeding (returns 403 Forbid if mismatch).
+
+**Dev seed**: all 8 seeded managers get `PasswordHash` for the password `"password"` so you can log in as e.g. `chris@example.com` / `password`.
+
+**Frontend**:
+- `stores/auth.ts` (`useAuthStore`) — `{ token, manager, managerId, isLoggedIn, login, register, logout, init }`. Token persisted to `localStorage` under `auth_token`. `init()` is called in `App.vue` on mount.
+- `api/client.ts` injects `Authorization: Bearer <token>` header on every request when token is set. Call `setAuthToken()` to update the client-side token.
+- Routes with `meta: { requiresAuth: true }` redirect to `/login?redirect=...` if unauthenticated.
+- Commissioner route changed from `/leagues/:leagueId/commissioner/:managerId` → `/leagues/:leagueId/commissioner` (managerId now from JWT).
+
 ### API endpoints
 
 Key endpoint files in `src/Cutline.Api/Endpoints/`:
@@ -155,12 +178,32 @@ Key endpoint files in `src/Cutline.Api/Endpoints/`:
   - `POST /api/leagues/{leagueId}/waivers/claims` — submit a claim; auto-detects the open week
   - `DELETE /api/leagues/{leagueId}/waivers/claims/{claimId}?teamId=` — cancel a pending claim
   - Optional query param `int page = 1` must come **after** `CancellationToken ct` in the lambda to avoid CS1737.
+- **`TradeEndpoints.cs`** — Trade system:
+  - `GET /api/leagues/{leagueId}/trades?teamId=` — all trades involving the team (pending + history)
+  - `POST /api/leagues/{leagueId}/trades` — propose; body `{ initiatorTeamId, receiverTeamId, offeredPlayerIds, requestedPlayerIds, message? }`
+  - `POST /api/leagues/{leagueId}/trades/{tradeId}/accept?teamId=` — receiver accepts; players move to bench automatically
+  - `POST /api/leagues/{leagueId}/trades/{tradeId}/reject?teamId=` — receiver rejects
+  - `DELETE /api/leagues/{leagueId}/trades/{tradeId}?teamId=` — initiator cancels
+  - Accept logic: nulls departing player slots first, then fills empty bench slots on receiving teams. Returns 400 if no bench slot available.
+- **`CommissionerEndpoints.cs`** — all routes under `/api/leagues/{leagueId}/commissioner/`; validates via `LeagueManagers.IsCommissioner`:
+  - `GET /` — full dashboard (settings + teams + weeks with scores); managerId from JWT
+  - `PATCH /settings` — update name, receptionPoints, useFaab, faabBudget, minFaabBid
+  - `PATCH /weeks/{n}/status` — set WeekStatus enum directly
+  - `PUT /weeks/{n}/scores/{teamId}` — upsert TeamScore (override)
+  - `POST /teams/{teamId}/eliminate` — force-eliminate: sets IsEliminated, snapshots + releases roster
+  - `POST /teams/{teamId}/restore` — clears IsEliminated; does NOT restore roster (players may already be claimed)
+  - `PATCH /teams/{teamId}/lock` — toggle IsLocked; locks block lineup swaps, waiver claims, drops, and trade proposals
+- **`ChatEndpoints.cs`** — `/api/leagues/{leagueId}/chat`:
+  - `GET /chat?before=&limit=50` — cursor-based pagination (before = ISO datetime), returns ascending
+  - `POST /chat` — body `{ managerId, content, gifUrl? }`; broadcasts `NewMessage` via `IHubContext<ChatHub>` to group `chat:{leagueId}`
 
 ### SignalR
 
 `ScoringHub` at `/hubs/scoring`. Client methods: `JoinLeague(leagueId)` / `LeaveLeague`, `JoinTeam(teamId)` / `LeaveTeam`.
 
 Server events: `TeamScoreUpdate { teamId, totalPoints }`, `PlayerStatUpdate { teamId, playerId, stats, points }`.
+
+`ChatHub` at `/hubs/chat`. Client methods: `JoinLeague(leagueId)` / `LeaveLeague`. Server event: `NewMessage` (full `ChatMessage` object).
 
 **Always broadcast `TeamScoreUpdate` to both `team:{id}` AND `league:{leagueId}` groups** — managers viewing other teams' live pages subscribe to the league group but not every team group, so they need the broadcast on the league channel to update their leaderboard.
 
@@ -170,6 +213,9 @@ Key views added in `client/src/views/`:
 - **`LiveTeamView.vue`** — `/leagues/:leagueId/teams/:teamId/live` — live per-player scorecard with league leaderboard sidebar. Joins both `team:{teamId}` and `league:{leagueId}` SignalR groups.
 - **`WeeklyMatchupView.vue`** — `/leagues/:leagueId/matchup` — all teams' live scores with dashed cut-line divider and red callout for the team on the cut line. Joins `league:{leagueId}`.
 - **`WaiverWireView.vue`** — `/leagues/:leagueId/teams/:teamId/waivers` — browse free agents, submit FAAB blind-auction bids (large `$X` input + slider + quick-bid presets) or priority claims, view claim results.
+- **`TradesView.vue`** — `/leagues/:leagueId/teams/:teamId/trades` — propose trades (team picker + dual roster selectors), Inbox (incoming with accept/decline), Sent (outgoing with cancel), History tabs. Uses `TradeCard` component (`client/src/components/TradeCard.vue`) for consistent trade rendering.
+- **`CommissionerView.vue`** — `/leagues/:leagueId/commissioner/:managerId` — settings (name, scoring preset, FAAB), team lock/unlock/eliminate/restore, week status overrides, per-team score overrides.
+- **`ChatView.vue`** — `/leagues/:leagueId/chat/:managerId` — real-time league chat. Full-height layout. @mention autocomplete (keyboard navigable), URL auto-linking, GIF picker (Tenor). Message grouping collapses avatar/header for consecutive messages from the same manager within 5 min. Content rendered via `renderContent()`: HTML-escape first → URL links → @mention spans → `\n` to `<br>` (XSS-safe). Uses `GifPicker` component (`client/src/components/GifPicker.vue`); requires `VITE_TENOR_API_KEY` env var — gracefully shows config instructions if absent. SignalR group: `chat:{leagueId}`.
 
 ### Dev seed
 
@@ -183,7 +229,7 @@ Key views added in `client/src/views/`:
 
 `dotnet ef database update --project src/Cutline.Infrastructure --startup-project src/Cutline.Api`
 
-Current migrations (in order): `InitialCreate` → `AddPlayerMetadata` → `AddPlayerAdp` → `AddFaabSettings` → `AllowEmptyRosterSlots` → `AddPlayerGameStats`.
+Current migrations (in order): `InitialCreate` → `AddPlayerMetadata` → `AddPlayerAdp` → `AddFaabSettings` → `AllowEmptyRosterSlots` → `AddPlayerGameStats` → `AddWaiverMinBid` → `AddWeekDroppedPlayers` → `AddTrades` → `TradesCascadeDelete` → `AddTeamIsLocked` → `AddChatMessages` → `AddManagerPasswordHash`.
 
 ## License
 

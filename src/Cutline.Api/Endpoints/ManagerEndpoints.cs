@@ -55,7 +55,7 @@ public static class ManagerEndpoints
         });
 
         // ── League-scoped manager endpoints ───────────────────────────────
-        var leagueManagers = app.MapGroup("/api/leagues/{leagueId:guid}/managers");
+        var leagueManagers = app.MapGroup("/api/leagues/{leagueId:guid}/managers").RequireAuthorization();
 
         leagueManagers.MapGet("/", async (Guid leagueId, IManagerRepository repo, CancellationToken ct) =>
         {

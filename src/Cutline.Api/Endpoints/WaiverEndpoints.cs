@@ -11,7 +11,7 @@ public static class WaiverEndpoints
 
     public static void MapWaiverEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/leagues/{leagueId:guid}/waivers");
+        var group = app.MapGroup("/api/leagues/{leagueId:guid}/waivers").RequireAuthorization();
 
         // GET /api/leagues/{leagueId}/waivers?teamId=&position=&search=&page=
         // Full waiver wire state: available free agents, pending claims, recent results.
@@ -65,16 +65,18 @@ public static class WaiverEndpoints
                 .Select(p => new { p.Id, p.FirstName, p.LastName, p.Position, p.NflTeam, p.Status, p.Adp, p.ByeWeek })
                 .ToListAsync(ct);
 
-            // FAAB remaining for this team
+            // FAAB remaining for this team — subtract both processed (won) and pending (committed) bids
+            // so managers cannot over-commit their budget across multiple simultaneous claims.
             decimal faabRemaining = league.RosterSettings.FaabBudget;
             if (teamId.HasValue && league.RosterSettings.UseFaab)
             {
-                var spent = await db.WaiverClaims
+                var committed = await db.WaiverClaims
                     .Where(wc => wc.TeamId == teamId.Value &&
-                                 wc.Status == WaiverClaimStatus.Processed &&
-                                 wc.Week.LeagueId == leagueId)
+                                 wc.Week.LeagueId == leagueId &&
+                                 (wc.Status == WaiverClaimStatus.Processed ||
+                                  wc.Status == WaiverClaimStatus.Pending))
                     .SumAsync(wc => wc.FaabBid ?? 0m, ct);
-                faabRemaining = league.RosterSettings.FaabBudget - spent;
+                faabRemaining = league.RosterSettings.FaabBudget - committed;
             }
 
             // My pending claims for the open week
@@ -161,6 +163,7 @@ public static class WaiverEndpoints
                 claimsOpen,
                 useFaab     = league.RosterSettings.UseFaab,
                 faabBudget  = league.RosterSettings.FaabBudget,
+                minFaabBid  = league.RosterSettings.MinFaabBid,
                 faabRemaining,
                 availablePlayers = new { items = players, totalCount, page, pageSize = PageSize },
                 myClaims,
@@ -173,10 +176,22 @@ public static class WaiverEndpoints
         // Convenience endpoint — auto-detects the open week and submits the claim.
         group.MapPost("/claims", async (
             Guid leagueId,
+            HttpContext ctx,
             SubmitWaiverRequest req,
             CutlineDbContext db,
             CancellationToken ct) =>
         {
+            var jwtManagerId = AuthEndpoints.GetManagerId(ctx);
+            var teamManagerId = await db.Teams.Where(t => t.Id == req.TeamId && t.LeagueId == leagueId).Select(t => t.ManagerId).FirstOrDefaultAsync(ct);
+            if (teamManagerId != jwtManagerId) return Results.Forbid();
+            // Load league settings first so we can validate FAAB before touching the week
+            var leagueSettings = await db.Leagues
+                .Where(l => l.Id == leagueId)
+                .Select(l => new { l.RosterSettings.UseFaab, l.RosterSettings.FaabBudget, l.RosterSettings.MinFaabBid })
+                .FirstOrDefaultAsync(ct);
+
+            if (leagueSettings is null) return Results.NotFound();
+
             var week = await db.Weeks
                 .Include(w => w.WaiverClaims)
                 .Where(w => w.LeagueId == leagueId &&
@@ -189,10 +204,41 @@ public static class WaiverEndpoints
             if (week is null)
                 return Results.BadRequest(new { error = "No active waiver window." });
 
+            var teamLocked = await db.Teams.Where(t => t.Id == req.TeamId && t.LeagueId == leagueId)
+                .Select(t => t.IsLocked).FirstOrDefaultAsync(ct);
+            if (teamLocked) return Results.BadRequest(new { error = "This team is locked by the commissioner." });
+
             if (week.WaiverClaims.Any(wc => wc.TeamId == req.TeamId &&
                                             wc.AddPlayerId == req.AddPlayerId &&
                                             wc.Status == WaiverClaimStatus.Pending))
                 return Results.BadRequest(new { error = "You already have a pending claim for this player." });
+
+            // FAAB validation — enforce budget and require a bid amount when the league uses FAAB
+            if (leagueSettings.UseFaab)
+            {
+                if (req.FaabBid is null or < 0)
+                    return Results.BadRequest(new { error = "A FAAB bid amount is required." });
+
+                if (req.FaabBid < leagueSettings.MinFaabBid)
+                    return Results.BadRequest(new
+                    {
+                        error = $"Minimum bid is ${leagueSettings.MinFaabBid:F0}."
+                    });
+
+                var committed = await db.WaiverClaims
+                    .Where(wc => wc.TeamId == req.TeamId &&
+                                 wc.Week.LeagueId == leagueId &&
+                                 (wc.Status == WaiverClaimStatus.Processed ||
+                                  wc.Status == WaiverClaimStatus.Pending))
+                    .SumAsync(wc => wc.FaabBid ?? 0m, ct);
+
+                var available = leagueSettings.FaabBudget - committed;
+                if (req.FaabBid > available)
+                    return Results.BadRequest(new
+                    {
+                        error = $"Insufficient FAAB — bid ${req.FaabBid:F0}, available ${available:F0}."
+                    });
+            }
 
             var nextPriority = week.WaiverClaims.Count > 0
                 ? week.WaiverClaims.Max(wc => wc.Priority) + 1
@@ -215,16 +261,49 @@ public static class WaiverEndpoints
 
             return Results.Created($"/api/leagues/{leagueId}/waivers/claims/{claim.Id}",
                 new { claimId = claim.Id, weekNumber = week.WeekNumber, priority = claim.Priority });
-        });
+        }).RequireAuthorization();
+
+        // POST /api/leagues/{leagueId}/waivers/drop
+        // Immediately releases a player from a team's roster. No FAAB cost, no waiver processing.
+        group.MapPost("/drop", async (
+            Guid leagueId,
+            HttpContext ctx,
+            DropPlayerRequest req,
+            CutlineDbContext db,
+            CancellationToken ct) =>
+        {
+            var jwtManagerId = AuthEndpoints.GetManagerId(ctx);
+            var teamManagerId = await db.Teams.Where(t => t.Id == req.TeamId && t.LeagueId == leagueId).Select(t => t.ManagerId).FirstOrDefaultAsync(ct);
+            if (teamManagerId != jwtManagerId) return Results.Forbid();
+            var team = await db.Teams.FirstOrDefaultAsync(t => t.Id == req.TeamId && t.LeagueId == leagueId, ct);
+            if (team is null) return Results.NotFound();
+            if (team.IsEliminated) return Results.BadRequest(new { error = "Eliminated teams cannot drop players." });
+            if (team.IsLocked) return Results.BadRequest(new { error = "This team is locked by the commissioner." });
+
+            var slot = await db.RosterSlots
+                .FirstOrDefaultAsync(rs => rs.TeamId == req.TeamId && rs.PlayerId == req.PlayerId, ct);
+
+            if (slot is null) return Results.BadRequest(new { error = "Player is not on this team's roster." });
+
+            slot.PlayerId = null;
+            await db.SaveChangesAsync(ct);
+
+            return Results.Ok();
+        }).RequireAuthorization();
 
         // DELETE /api/leagues/{leagueId}/waivers/claims/{claimId}?teamId=
         group.MapDelete("/claims/{claimId:guid}", async (
             Guid leagueId,
             Guid claimId,
             Guid teamId,
+            HttpContext ctx,
             CutlineDbContext db,
             CancellationToken ct) =>
         {
+            var jwtManagerId = AuthEndpoints.GetManagerId(ctx);
+            var teamManagerId = await db.Teams.Where(t => t.Id == teamId && t.LeagueId == leagueId).Select(t => t.ManagerId).FirstOrDefaultAsync(ct);
+            if (teamManagerId != jwtManagerId) return Results.Forbid();
+
             var claim = await db.WaiverClaims
                 .Include(wc => wc.Week)
                 .FirstOrDefaultAsync(wc => wc.Id == claimId &&
@@ -238,8 +317,9 @@ public static class WaiverEndpoints
             db.WaiverClaims.Remove(claim);
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
-        });
+        }).RequireAuthorization();
     }
 }
 
 public record SubmitWaiverRequest(Guid TeamId, Guid AddPlayerId, Guid? DropPlayerId, decimal? FaabBid);
+public record DropPlayerRequest(Guid TeamId, Guid PlayerId);

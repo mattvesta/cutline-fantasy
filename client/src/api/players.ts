@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { Player, PlayerPage } from './types'
+import type { Player, PlayerPage, PlayerSeasonStats } from './types'
 
 export interface PlayerSearchParams {
   position?: string
@@ -24,4 +24,6 @@ export const playersApi = {
   },
 
   getById: (id: string) => api.get<Player>(`/players/${id}`),
+
+  getSeasonStats: (id: string) => api.get<PlayerSeasonStats[]>(`/players/${id}/stats`),
 }

@@ -8,7 +8,7 @@ public static class DraftEndpoints
 {
     public static void MapDraftEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/leagues/{leagueId:guid}/draft");
+        var group = app.MapGroup("/api/leagues/{leagueId:guid}/draft").RequireAuthorization();
 
         // GET /api/leagues/{leagueId}/draft
         group.MapGet("", async (Guid leagueId, IDraftService svc, CancellationToken ct) =>

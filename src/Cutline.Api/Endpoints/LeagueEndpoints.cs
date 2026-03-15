@@ -2,6 +2,8 @@ namespace Cutline.Api.Endpoints;
 
 using Cutline.Core.Entities;
 using Cutline.Core.Interfaces;
+using Cutline.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 public static class LeagueEndpoints
 {
@@ -9,17 +11,26 @@ public static class LeagueEndpoints
     {
         var group = app.MapGroup("/api/leagues");
 
-        group.MapGet("/", async (ILeagueRepository leagues, CancellationToken ct) =>
+        group.MapGet("/", async (HttpContext ctx, CutlineDbContext db, CancellationToken ct) =>
         {
-            var all = await leagues.GetAllAsync(ct);
-            return Results.Ok(all);
-        });
+            var managerId = AuthEndpoints.GetManagerId(ctx);
+            var leagueIds = await db.LeagueManagers
+                .Where(lm => lm.ManagerId == managerId)
+                .Select(lm => lm.LeagueId)
+                .ToListAsync(ct);
+            var leagues = await db.Leagues
+                .Include(l => l.Teams)
+                .Include(l => l.LeagueManagers).ThenInclude(lm => lm.Manager)
+                .Where(l => leagueIds.Contains(l.Id))
+                .ToListAsync(ct);
+            return Results.Ok(leagues);
+        }).RequireAuthorization();
 
         group.MapGet("/{leagueId:guid}", async (Guid leagueId, ILeagueRepository leagues, CancellationToken ct) =>
         {
             var league = await leagues.GetByIdAsync(leagueId, ct);
             return league is null ? Results.NotFound() : Results.Ok(league);
-        });
+        }).RequireAuthorization();
 
         group.MapPost("/", async (CreateLeagueRequest req, ILeagueRepository leagues, CancellationToken ct) =>
         {
@@ -47,6 +58,7 @@ public static class LeagueEndpoints
                     IrSlots    = req.IrSlots    ?? 1,
                     UseFaab    = req.UseFaab    ?? false,
                     FaabBudget = req.FaabBudget ?? 100m,
+                    MinFaabBid = req.MinFaabBid ?? 0m,
                 },
             };
 
@@ -54,7 +66,7 @@ public static class LeagueEndpoints
             await leagues.SaveChangesAsync(ct);
 
             return Results.Created($"/api/leagues/{league.Id}", league);
-        });
+        }).RequireAuthorization();
 
         return group;
     }
@@ -71,5 +83,6 @@ public record CreateLeagueRequest(
     int? BenchSlots, int? IrSlots,
     // Waivers
     bool? UseFaab,
-    decimal? FaabBudget
+    decimal? FaabBudget,
+    decimal? MinFaabBid
 );

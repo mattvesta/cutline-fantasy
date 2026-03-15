@@ -3,7 +3,7 @@ namespace Cutline.Core.Entities;
 public class Player
 {
     public Guid Id { get; set; }
-    public string GsisId { get; set; } = string.Empty;  // canonical ID
+    public string? GsisId { get; set; }  // canonical ID — null until backfilled from nflverse
     public string? SleeperId { get; set; }
     public string? EspnId { get; set; }
     public string FirstName { get; set; } = string.Empty;

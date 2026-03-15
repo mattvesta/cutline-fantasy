@@ -31,4 +31,10 @@ export const waiversApi = {
 
   cancelClaim: (leagueId: string, claimId: string, teamId: string): Promise<void> =>
     req(`/leagues/${leagueId}/waivers/claims/${claimId}?teamId=${teamId}`, { method: 'DELETE' }),
+
+  dropPlayer: (leagueId: string, teamId: string, playerId: string): Promise<void> =>
+    req(`/leagues/${leagueId}/waivers/drop`, {
+      method: 'POST',
+      body: JSON.stringify({ teamId, playerId }),
+    }),
 }

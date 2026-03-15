@@ -1,6 +1,15 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
-const route = useRoute()
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+
+const route  = useRoute()
+const router = useRouter()
+const auth   = useAuthStore()
+
+function logout() {
+  auth.logout()
+  router.push('/')
+}
 </script>
 
 <template>
@@ -55,10 +64,19 @@ const route = useRoute()
         </RouterLink>
       </nav>
 
-      <!-- CTA -->
-      <RouterLink to="/leagues/create" class="btn btn-primary text-xs py-1.5 px-4">
-        New League
-      </RouterLink>
+      <!-- Auth area -->
+      <div class="flex items-center gap-3">
+        <template v-if="auth.isLoggedIn">
+          <span class="text-sm hidden sm:block" style="color: var(--text-muted)">
+            {{ auth.manager?.displayName }}
+          </span>
+          <button class="btn btn-ghost text-xs py-1.5 px-3" @click="logout">Sign out</button>
+        </template>
+        <template v-else>
+          <RouterLink to="/login" class="btn btn-ghost text-xs py-1.5 px-3">Sign in</RouterLink>
+          <RouterLink to="/register" class="btn btn-primary text-xs py-1.5 px-4">Register</RouterLink>
+        </template>
+      </div>
 
     </div>
   </header>

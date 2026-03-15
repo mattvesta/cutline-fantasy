@@ -2,16 +2,21 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { playersApi } from '../api/players'
-import type { Player } from '../api/types'
+import type { Player, PlayerSeasonStats } from '../api/types'
 
 const route = useRoute()
 const player = ref<Player | null>(null)
+const seasonStats = ref<PlayerSeasonStats[]>([])
 const isLoading = ref(true)
 const error = ref<string | null>(null)
 
 onMounted(async () => {
+  const id = route.params.playerId as string
   try {
-    player.value = await playersApi.getById(route.params.playerId as string)
+    [player.value, seasonStats.value] = await Promise.all([
+      playersApi.getById(id),
+      playersApi.getSeasonStats(id),
+    ])
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load player'
   } finally {
@@ -121,10 +126,198 @@ function formatAdp(adp: number): string {
         </div>
       </div>
 
-      <!-- Stats placeholder -->
-      <div class="card p-8 text-center text-[var(--text-muted)] text-sm">
-        Season stats coming soon
-      </div>
+      <!-- Season stats -->
+      <section>
+        <h2 class="label mb-4">Career Stats</h2>
+
+        <div v-if="seasonStats.length === 0" class="card p-8 text-center text-[var(--text-muted)] text-sm">
+          No stats recorded yet
+        </div>
+
+        <!-- QB -->
+        <div v-else-if="player.position === 'QB'" class="card overflow-hidden">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="pl-5">Season</th>
+                <th>G</th>
+                <th class="hidden sm:table-cell">Fpts</th>
+                <th>Cmp/Att</th>
+                <th>Yds</th>
+                <th>TD</th>
+                <th>INT</th>
+                <th class="hidden md:table-cell">Rush Yds</th>
+                <th class="hidden md:table-cell">Rush TD</th>
+                <th class="pr-5 hidden md:table-cell">Fum</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in seasonStats" :key="s.season">
+                <td class="pl-5 font-medium">{{ s.season }}</td>
+                <td>{{ s.gamesPlayed }}</td>
+                <td class="hidden sm:table-cell">{{ s.fantasyPoints.toFixed(1) }}</td>
+                <td>{{ s.passingCompletions }}/{{ s.passingAttempts }}</td>
+                <td>{{ s.passingYards.toLocaleString() }}</td>
+                <td>{{ s.passingTDs }}</td>
+                <td>{{ s.interceptions }}</td>
+                <td class="hidden md:table-cell">{{ s.rushingYards }}</td>
+                <td class="hidden md:table-cell">{{ s.rushingTDs }}</td>
+                <td class="pr-5 hidden md:table-cell">{{ s.fumbles }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- RB -->
+        <div v-else-if="player.position === 'RB'" class="card overflow-hidden">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="pl-5">Season</th>
+                <th>G</th>
+                <th class="hidden sm:table-cell">Fpts</th>
+                <th>Att</th>
+                <th>Rush Yds</th>
+                <th>Rush TD</th>
+                <th class="hidden sm:table-cell">Rec</th>
+                <th class="hidden sm:table-cell">Tgt</th>
+                <th class="hidden md:table-cell">Rec Yds</th>
+                <th class="hidden md:table-cell">Rec TD</th>
+                <th class="pr-5 hidden md:table-cell">Fum</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in seasonStats" :key="s.season">
+                <td class="pl-5 font-medium">{{ s.season }}</td>
+                <td>{{ s.gamesPlayed }}</td>
+                <td class="hidden sm:table-cell">{{ s.fantasyPoints.toFixed(1) }}</td>
+                <td>{{ s.rushingAttempts }}</td>
+                <td>{{ s.rushingYards.toLocaleString() }}</td>
+                <td>{{ s.rushingTDs }}</td>
+                <td class="hidden sm:table-cell">{{ s.receptions }}</td>
+                <td class="hidden sm:table-cell">{{ s.targets }}</td>
+                <td class="hidden md:table-cell">{{ s.receivingYards }}</td>
+                <td class="hidden md:table-cell">{{ s.receivingTDs }}</td>
+                <td class="pr-5 hidden md:table-cell">{{ s.fumbles }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- WR / TE -->
+        <div v-else-if="player.position === 'WR' || player.position === 'TE'" class="card overflow-hidden">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="pl-5">Season</th>
+                <th>G</th>
+                <th class="hidden sm:table-cell">Fpts</th>
+                <th>Rec</th>
+                <th>Tgt</th>
+                <th>Rec Yds</th>
+                <th>Rec TD</th>
+                <th class="hidden md:table-cell">Rush Yds</th>
+                <th class="pr-5 hidden md:table-cell">Rush TD</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in seasonStats" :key="s.season">
+                <td class="pl-5 font-medium">{{ s.season }}</td>
+                <td>{{ s.gamesPlayed }}</td>
+                <td class="hidden sm:table-cell">{{ s.fantasyPoints.toFixed(1) }}</td>
+                <td>{{ s.receptions }}</td>
+                <td>{{ s.targets }}</td>
+                <td>{{ s.receivingYards.toLocaleString() }}</td>
+                <td>{{ s.receivingTDs }}</td>
+                <td class="hidden md:table-cell">{{ s.rushingYards }}</td>
+                <td class="pr-5 hidden md:table-cell">{{ s.rushingTDs }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- K -->
+        <div v-else-if="player.position === 'K'" class="card overflow-hidden">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="pl-5">Season</th>
+                <th>G</th>
+                <th class="hidden sm:table-cell">Fpts</th>
+                <th>FGM</th>
+                <th>FGA</th>
+                <th>FG%</th>
+                <th>XPM</th>
+                <th class="pr-5">XPA</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in seasonStats" :key="s.season">
+                <td class="pl-5 font-medium">{{ s.season }}</td>
+                <td>{{ s.gamesPlayed }}</td>
+                <td class="hidden sm:table-cell">{{ s.fantasyPoints.toFixed(1) }}</td>
+                <td>{{ s.fieldGoalsMade }}</td>
+                <td>{{ s.fieldGoalsAttempted }}</td>
+                <td>{{ s.fieldGoalsAttempted > 0 ? ((s.fieldGoalsMade / s.fieldGoalsAttempted) * 100).toFixed(1) + '%' : '—' }}</td>
+                <td>{{ s.extraPointsMade }}</td>
+                <td class="pr-5">{{ s.extraPointsAttempted }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- DEF -->
+        <div v-else-if="player.position === 'DEF'" class="card overflow-hidden">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="pl-5">Season</th>
+                <th>G</th>
+                <th class="hidden sm:table-cell">Fpts</th>
+                <th>Sacks</th>
+                <th>INT</th>
+                <th class="hidden sm:table-cell">FR</th>
+                <th>TD</th>
+                <th class="hidden md:table-cell">PA</th>
+                <th class="pr-5 hidden md:table-cell">Saf</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in seasonStats" :key="s.season">
+                <td class="pl-5 font-medium">{{ s.season }}</td>
+                <td>{{ s.gamesPlayed }}</td>
+                <td class="hidden sm:table-cell">{{ s.fantasyPoints.toFixed(1) }}</td>
+                <td>{{ s.sacks }}</td>
+                <td>{{ s.defensiveInterceptions }}</td>
+                <td class="hidden sm:table-cell">{{ s.fumblesRecovered }}</td>
+                <td>{{ s.defensiveTDs }}</td>
+                <td class="hidden md:table-cell">{{ s.pointsAllowed }}</td>
+                <td class="pr-5 hidden md:table-cell">{{ s.safeties }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Fallback for any other position -->
+        <div v-else class="card overflow-hidden">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="pl-5">Season</th>
+                <th>G</th>
+                <th class="pr-5">Fpts</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in seasonStats" :key="s.season">
+                <td class="pl-5 font-medium">{{ s.season }}</td>
+                <td>{{ s.gamesPlayed }}</td>
+                <td class="pr-5">{{ s.fantasyPoints.toFixed(1) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   </div>
 </template>

@@ -38,9 +38,9 @@ public class SleeperClient
 
         foreach (var (sleeperId, dto) in raw)
         {
-            var gsisId = dto.GsisId?.Trim();
-            if (string.IsNullOrEmpty(gsisId)) continue;
             if (!RelevantPositions.Contains(dto.Position ?? string.Empty)) continue;
+
+            var gsisId = string.IsNullOrWhiteSpace(dto.GsisId) ? null : dto.GsisId.Trim();
 
             players.Add(new Player
             {

@@ -98,6 +98,20 @@ function isCommissioner(managerId: string) {
               This Week →
             </RouterLink>
             <RouterLink
+              v-if="store.current.teams.some(t => t.isEliminated)"
+              :to="`/leagues/${leagueId}/history`"
+              class="text-xs text-[var(--text-muted)] hover:text-white transition-colors"
+            >
+              Elimination History →
+            </RouterLink>
+            <RouterLink
+              v-if="commissioner"
+              :to="`/leagues/${leagueId}/commissioner`"
+              class="text-xs text-[var(--text-muted)] hover:text-white transition-colors"
+            >
+              Commissioner Tools →
+            </RouterLink>
+            <RouterLink
               :to="`/leagues/${leagueId}/managers`"
               class="text-xs text-[var(--text-muted)] hover:text-white transition-colors"
             >

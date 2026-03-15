@@ -7,7 +7,7 @@ public static class WeekEndpoints
 {
     public static RouteGroupBuilder MapWeeks(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/leagues/{leagueId:guid}/weeks");
+        var group = app.MapGroup("/api/leagues/{leagueId:guid}/weeks").RequireAuthorization();
 
         group.MapGet("/", async (Guid leagueId, IWeekRepository weeks, CancellationToken ct) =>
         {

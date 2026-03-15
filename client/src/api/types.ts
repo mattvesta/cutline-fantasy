@@ -35,6 +35,7 @@ export interface Team {
   manager: Manager | null
   isEliminated: boolean
   eliminatedWeek: number | null
+  isLocked: boolean
   rosterSlots: RosterSlot[]
 }
 
@@ -131,6 +132,35 @@ export interface PlayerStats {
   safeties: number | null
 }
 
+export interface PlayerSeasonStats {
+  season: number
+  gamesPlayed: number
+  fantasyPoints: number
+  passingYards: number
+  passingTDs: number
+  interceptions: number
+  passingAttempts: number
+  passingCompletions: number
+  rushingYards: number
+  rushingTDs: number
+  rushingAttempts: number
+  fumbles: number
+  receptions: number
+  targets: number
+  receivingYards: number
+  receivingTDs: number
+  fieldGoalsMade: number
+  fieldGoalsAttempted: number
+  extraPointsMade: number
+  extraPointsAttempted: number
+  sacks: number
+  defensiveInterceptions: number
+  fumblesRecovered: number
+  defensiveTDs: number
+  pointsAllowed: number
+  safeties: number
+}
+
 export interface WaiverPlayer {
   id: string
   firstName: string
@@ -174,6 +204,7 @@ export interface WaiverState {
   claimsOpen: boolean
   useFaab: boolean
   faabBudget: number
+  minFaabBid: number
   faabRemaining: number
   availablePlayers: {
     items: WaiverPlayer[]
@@ -220,6 +251,96 @@ export interface LiveTeamResponse {
   weekNumber: number
   totalPoints: number
   roster: LiveRosterSlot[]
+}
+
+export interface EliminationDroppedPlayer {
+  player: {
+    id: string
+    firstName: string
+    lastName: string
+    position: string
+    nflTeam: string | null
+    adp: number | null
+  } | null
+  claimedBy: { id: string; name: string } | null
+  faabBid: number | null
+}
+
+export interface EliminationEvent {
+  weekNumber: number
+  weekStatus: string
+  eliminatedTeam: { id: string; name: string } | null
+  losingScore: number | null
+  survivalGap: number | null
+  allScores: { teamId: string; teamName: string; points: number; rank: number }[]
+  droppedPlayers: EliminationDroppedPlayer[]
+}
+
+export interface ChatMessage {
+  id: string
+  managerId: string
+  managerName: string
+  content: string
+  gifUrl: string | null
+  sentAt: string
+}
+
+export interface CommissionerTeam {
+  id: string
+  name: string
+  managerName: string | null
+  isEliminated: boolean
+  eliminatedWeek: number | null
+  isLocked: boolean
+}
+
+export interface CommissionerScore {
+  teamId: string
+  teamName: string
+  points: number
+  isLocked: boolean
+}
+
+export interface CommissionerWeek {
+  weekNumber: number
+  status: string
+  scores: CommissionerScore[]
+}
+
+export interface CommissionerState {
+  name: string
+  status: string
+  receptionPoints: number
+  useFaab: boolean
+  faabBudget: number
+  minFaabBid: number
+  teams: CommissionerTeam[]
+  weeks: CommissionerWeek[]
+}
+
+export interface TradePlayer {
+  id: string
+  firstName: string
+  lastName: string
+  position: string
+  nflTeam: string | null
+}
+
+export interface TradeItemDetail {
+  playerId: string
+  fromTeamId: string
+  player: TradePlayer | null
+}
+
+export interface TradeDetail {
+  id: string
+  status: 'Pending' | 'Accepted' | 'Rejected' | 'Cancelled'
+  message: string | null
+  proposedAt: string
+  respondedAt: string | null
+  initiatorTeam: { id: string; name: string }
+  receiverTeam: { id: string; name: string }
+  items: TradeItemDetail[]
 }
 
 export interface Draft {

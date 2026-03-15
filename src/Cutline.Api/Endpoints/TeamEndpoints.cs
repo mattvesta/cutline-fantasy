@@ -9,7 +9,7 @@ public static class TeamEndpoints
 {
     public static RouteGroupBuilder MapTeams(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/leagues/{leagueId:guid}/teams");
+        var group = app.MapGroup("/api/leagues/{leagueId:guid}/teams").RequireAuthorization();
 
         group.MapGet("/", async (Guid leagueId, ITeamRepository teams, CancellationToken ct) =>
         {
@@ -45,11 +45,19 @@ public static class TeamEndpoints
         // Swap two roster slots (drag-and-drop lineup changes)
         group.MapPost("/{teamId:guid}/lineup/swap", async (
             Guid leagueId, Guid teamId,
+            HttpContext ctx,
             SwapSlotsRequest req,
             CutlineDbContext db,
             ITeamRepository teams,
             CancellationToken ct) =>
         {
+            var jwtManagerId = AuthEndpoints.GetManagerId(ctx);
+            var teamInfo = await db.Teams.Where(t => t.Id == teamId && t.LeagueId == leagueId)
+                .Select(t => new { t.IsLocked, t.ManagerId }).FirstOrDefaultAsync(ct);
+            if (teamInfo is null) return Results.NotFound();
+            if (teamInfo.ManagerId != jwtManagerId) return Results.Forbid();
+            if (teamInfo.IsLocked) return Results.BadRequest(new { error = "This team is locked by the commissioner." });
+
             var slotA = await db.RosterSlots.FirstOrDefaultAsync(s => s.Id == req.SlotAId && s.TeamId == teamId, ct);
             var slotB = await db.RosterSlots.FirstOrDefaultAsync(s => s.Id == req.SlotBId && s.TeamId == teamId, ct);
 
@@ -62,7 +70,7 @@ public static class TeamEndpoints
 
             var updated = await teams.GetByIdAsync(leagueId, teamId, ct);
             return Results.Ok(updated);
-        });
+        }).RequireAuthorization();
 
         return group;
     }

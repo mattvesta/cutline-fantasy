@@ -59,6 +59,7 @@ const teamCount = ref(10)
 // ─── Waivers ─────────────────────────────────────────────────────────
 const useFaab    = ref(true)
 const faabBudget = ref(100)
+const minFaabBid = ref(0)
 
 // ─── Submit ──────────────────────────────────────────────────────────
 const isSubmitting = ref(false)
@@ -91,6 +92,7 @@ async function submit() {
       irSlots:          slots.value.IR,
       useFaab:          useFaab.value,
       faabBudget:       useFaab.value ? faabBudget.value : 0,
+      minFaabBid:       useFaab.value ? minFaabBid.value : 0,
     })
     router.push(`/leagues/${league.id}`)
   } catch (e) {
@@ -328,6 +330,40 @@ const seasons = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() + 1
             </div>
             <p class="text-xs text-[var(--text-muted)] mt-2">
               Each team starts with ${{ faabBudget }} to spend on free agents over the season. Unspent budget does not carry over.
+            </p>
+
+            <hr class="my-4" style="border-color: var(--border-subtle)" />
+
+            <label class="label mb-3 block">Minimum Bid</label>
+            <div class="flex items-center gap-3">
+              <div class="flex items-center gap-2 max-w-xs">
+                <span class="text-[var(--text-muted)] font-medium">$</span>
+                <input
+                  v-model.number="minFaabBid"
+                  type="number"
+                  min="0"
+                  :max="faabBudget"
+                  step="1"
+                  class="input w-24"
+                />
+              </div>
+              <div class="flex gap-2">
+                <button
+                  v-for="preset in [0, 1]"
+                  :key="preset"
+                  type="button"
+                  class="text-xs px-2.5 py-1 rounded transition-colors"
+                  :style="minFaabBid === preset
+                    ? 'background: var(--accent-dim); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent)'
+                    : 'background: var(--surface-raised); color: var(--text-muted); border: 1px solid var(--border)'"
+                  @click="minFaabBid = preset"
+                >
+                  {{ preset === 0 ? '$0 (free pickups)' : '$1 minimum' }}
+                </button>
+              </div>
+            </div>
+            <p class="text-xs text-[var(--text-muted)] mt-2">
+              $0 allows free pickups when no one else bids. $1+ requires managers to commit budget on every claim.
             </p>
           </div>
         </Transition>

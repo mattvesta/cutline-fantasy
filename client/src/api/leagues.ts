@@ -13,5 +13,6 @@ export const leaguesApi = {
     benchSlots: number; irSlots: number
     useFaab: boolean
     faabBudget: number
+    minFaabBid: number
   }) => api.post<League>('/leagues', payload),
 }

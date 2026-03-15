@@ -4,6 +4,8 @@ using Cutline.Api.Hubs;
 using Cutline.Core.Entities;
 using Cutline.Core.Interfaces;
 using Cutline.Infrastructure.Data;
+using Cutline.Infrastructure.Sports;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,7 +15,7 @@ public static class DevEndpoints
     {
         var group = app.MapGroup("/api/dev");
 
-        group.MapPost("/seed", async (CutlineDbContext db, CancellationToken ct) =>
+        group.MapPost("/seed", async (CutlineDbContext db, IPasswordHasher<Manager> hasher, CancellationToken ct) =>
         {
             if (db.Leagues.Any() || db.Managers.Any())
                 return Results.Ok(new { message = "Already seeded." });
@@ -42,12 +44,17 @@ public static class DevEndpoints
                 ("Scoreboard Steve",   "steve@example.com"),
             };
 
-            var managers = managerSeeds.Select((s, i) => new Manager
+            var managers = managerSeeds.Select((s, i) =>
             {
-                Id          = Guid.NewGuid(),
-                DisplayName = s.Item1,
-                Email       = s.Item2,
-                CreatedAt   = DateTime.UtcNow,
+                var m = new Manager
+                {
+                    Id          = Guid.NewGuid(),
+                    DisplayName = s.Item1,
+                    Email       = s.Item2,
+                    CreatedAt   = DateTime.UtcNow,
+                };
+                m.PasswordHash = hasher.HashPassword(m, "password");
+                return m;
             }).ToList();
 
             await db.Managers.AddRangeAsync(managers, ct);
@@ -58,6 +65,12 @@ public static class DevEndpoints
                 Name   = "Cutline Test League 2025",
                 Season = 2025,
                 Status = LeagueStatus.Active,
+                RosterSettings = new RosterSettings
+                {
+                    UseFaab    = true,
+                    FaabBudget = 100m,
+                    MinFaabBid = 0m,
+                },
             };
 
             // Create league memberships — first manager is commissioner
@@ -115,6 +128,24 @@ public static class DevEndpoints
             await db.SaveChangesAsync(ct);
 
             return Results.Ok(new { leagueId = league.Id, teams = league.Teams.Count, managers = managers.Count });
+        });
+
+        // POST /api/dev/import-player-stats?season=2024
+        // Manually re-fetches the nflverse player_stats CSV for a season and upserts all rows.
+        // Use this after GsisId backfill has run to pick up players that were previously skipped.
+        group.MapPost("/import-player-stats", async (
+            int season,
+            NflverseClient nflverse,
+            NflverseStatsImporter importer,
+            ILoggerFactory loggerFactory,
+            CancellationToken ct) =>
+        {
+            var logger = loggerFactory.CreateLogger("DevEndpoints");
+            logger.LogInformation("Dev: importing player stats for season {Season}", season);
+            var stats = await nflverse.FetchAllSeasonStatsAsync(season, ct);
+            logger.LogInformation("Dev: fetched {Count} rows for season {Season}", stats.Count, season);
+            await importer.ImportAsync(stats, ct);
+            return Results.Ok(new { season, rowsFetched = stats.Count });
         });
 
         group.MapDelete("/seed", async (CutlineDbContext db, CancellationToken ct) =>

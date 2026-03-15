@@ -9,7 +9,7 @@ public class PlayerConfiguration : IEntityTypeConfiguration<Player>
     public void Configure(EntityTypeBuilder<Player> builder)
     {
         builder.HasKey(p => p.Id);
-        builder.Property(p => p.GsisId).IsRequired().HasMaxLength(20);
+        builder.Property(p => p.GsisId).HasMaxLength(20);
         builder.Property(p => p.FirstName).IsRequired().HasMaxLength(50);
         builder.Property(p => p.LastName).IsRequired().HasMaxLength(50);
         builder.Property(p => p.Position).IsRequired().HasMaxLength(10);

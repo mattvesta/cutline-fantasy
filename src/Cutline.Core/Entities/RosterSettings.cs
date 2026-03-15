@@ -15,4 +15,6 @@ public class RosterSettings
     public bool TePremium { get; set; } = false;
     public bool UseFaab { get; set; } = false;
     public decimal FaabBudget { get; set; } = 100m;
+    /// <summary>Minimum allowed FAAB bid. Default $0 allows free ($0) pickups (Sleeper default).</summary>
+    public decimal MinFaabBid { get; set; } = 0m;
 }

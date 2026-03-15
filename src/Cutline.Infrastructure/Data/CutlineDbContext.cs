@@ -19,6 +19,9 @@ public class CutlineDbContext : DbContext
     public DbSet<Draft> Drafts => Set<Draft>();
     public DbSet<DraftPick> DraftPicks => Set<DraftPick>();
     public DbSet<PlayerGameStats> PlayerGameStats => Set<PlayerGameStats>();
+    public DbSet<Trade> Trades => Set<Trade>();
+    public DbSet<TradeItem> TradeItems => Set<TradeItem>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

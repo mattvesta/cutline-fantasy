@@ -201,6 +201,15 @@ const STATUS_LABEL: Record<string, string> = {
             Waivers
           </RouterLink>
           <RouterLink
+            :to="`/leagues/${leagueId}/teams/${teamId}/trades`"
+            class="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
+            style="background: var(--surface-raised); color: var(--text-secondary); border: 1px solid var(--border)"
+            onmouseover="this.style.color='white'; this.style.borderColor='var(--border-hover)'"
+            onmouseout="this.style.color='var(--text-secondary)'; this.style.borderColor='var(--border)'"
+          >
+            Trades
+          </RouterLink>
+          <RouterLink
             :to="`/leagues/${leagueId}/teams/${teamId}/live`"
             class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
             style="background: rgba(34,197,94,0.1); color: #22c55e; border: 1px solid rgba(34,197,94,0.2)"

@@ -23,6 +23,39 @@ namespace Cutline.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Cutline.Core.Entities.ChatMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("GifUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("LeagueId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ManagerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ManagerId");
+
+                    b.HasIndex("LeagueId", "SentAt");
+
+                    b.ToTable("ChatMessages");
+                });
+
             modelBuilder.Entity("Cutline.Core.Entities.Draft", b =>
                 {
                     b.Property<Guid>("Id")
@@ -139,6 +172,9 @@ namespace Cutline.Infrastructure.Migrations
                             b1.Property<int>("KSlots")
                                 .HasColumnType("integer");
 
+                            b1.Property<decimal>("MinFaabBid")
+                                .HasColumnType("numeric");
+
                             b1.Property<int>("QbSlots")
                                 .HasColumnType("integer");
 
@@ -242,6 +278,9 @@ namespace Cutline.Infrastructure.Migrations
                         .HasMaxLength(254)
                         .HasColumnType("character varying(254)");
 
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
@@ -283,7 +322,6 @@ namespace Cutline.Infrastructure.Migrations
                         .HasColumnType("character varying(50)");
 
                     b.Property<string>("GsisId")
-                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
@@ -484,6 +522,9 @@ namespace Cutline.Infrastructure.Migrations
                     b.Property<bool>("IsEliminated")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("boolean");
+
                     b.Property<Guid>("LeagueId")
                         .HasColumnType("uuid");
 
@@ -539,6 +580,69 @@ namespace Cutline.Infrastructure.Migrations
                     b.ToTable("TeamScores");
                 });
 
+            modelBuilder.Entity("Cutline.Core.Entities.Trade", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("InitiatorTeamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("LeagueId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("ProposedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ReceiverTeamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LeagueId");
+
+                    b.HasIndex("InitiatorTeamId", "Status");
+
+                    b.HasIndex("ReceiverTeamId", "Status");
+
+                    b.ToTable("Trades");
+                });
+
+            modelBuilder.Entity("Cutline.Core.Entities.TradeItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FromTeamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TradeId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId");
+
+                    b.HasIndex("TradeId");
+
+                    b.ToTable("TradeItems");
+                });
+
             modelBuilder.Entity("Cutline.Core.Entities.WaiverClaim", b =>
                 {
                     b.Property<Guid>("Id")
@@ -589,6 +693,10 @@ namespace Cutline.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.PrimitiveCollection<Guid[]>("DroppedPlayerIds")
+                        .IsRequired()
+                        .HasColumnType("uuid[]");
+
                     b.Property<Guid?>("EliminatedTeamId")
                         .HasColumnType("uuid");
 
@@ -609,6 +717,17 @@ namespace Cutline.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Weeks");
+                });
+
+            modelBuilder.Entity("Cutline.Core.Entities.ChatMessage", b =>
+                {
+                    b.HasOne("Cutline.Core.Entities.Manager", "Manager")
+                        .WithMany()
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Manager");
                 });
 
             modelBuilder.Entity("Cutline.Core.Entities.Draft", b =>
@@ -732,6 +851,44 @@ namespace Cutline.Infrastructure.Migrations
                     b.Navigation("Week");
                 });
 
+            modelBuilder.Entity("Cutline.Core.Entities.Trade", b =>
+                {
+                    b.HasOne("Cutline.Core.Entities.Team", "InitiatorTeam")
+                        .WithMany()
+                        .HasForeignKey("InitiatorTeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Cutline.Core.Entities.Team", "ReceiverTeam")
+                        .WithMany()
+                        .HasForeignKey("ReceiverTeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InitiatorTeam");
+
+                    b.Navigation("ReceiverTeam");
+                });
+
+            modelBuilder.Entity("Cutline.Core.Entities.TradeItem", b =>
+                {
+                    b.HasOne("Cutline.Core.Entities.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Cutline.Core.Entities.Trade", "Trade")
+                        .WithMany("Items")
+                        .HasForeignKey("TradeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Player");
+
+                    b.Navigation("Trade");
+                });
+
             modelBuilder.Entity("Cutline.Core.Entities.WaiverClaim", b =>
                 {
                     b.HasOne("Cutline.Core.Entities.Player", "AddPlayer")
@@ -808,6 +965,11 @@ namespace Cutline.Infrastructure.Migrations
             modelBuilder.Entity("Cutline.Core.Entities.Team", b =>
                 {
                     b.Navigation("RosterSlots");
+                });
+
+            modelBuilder.Entity("Cutline.Core.Entities.Trade", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("Cutline.Core.Entities.Week", b =>

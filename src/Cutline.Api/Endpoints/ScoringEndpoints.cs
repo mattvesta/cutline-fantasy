@@ -9,7 +9,7 @@ public static class ScoringEndpoints
 {
     public static void MapScoringEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/leagues/{leagueId:guid}/scoring");
+        var group = app.MapGroup("/api/leagues/{leagueId:guid}/scoring").RequireAuthorization();
 
         // GET /api/leagues/{leagueId}/scoring/live
         group.MapGet("/live", async (

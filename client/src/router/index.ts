@@ -1,22 +1,45 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import LeagueLayout from '../views/LeagueLayout.vue'
+import { useAuthStore } from '../stores/auth'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', component: HomeView },
-    { path: '/leagues/create', component: () => import('../views/CreateLeagueView.vue') },
+    { path: '/login',    component: () => import('../views/LoginView.vue') },
+    { path: '/register', component: () => import('../views/RegisterView.vue') },
+    { path: '/leagues/create', component: () => import('../views/CreateLeagueView.vue'), meta: { requiresAuth: true } },
     { path: '/players', component: () => import('../views/PlayersView.vue') },
     { path: '/players/:playerId', component: () => import('../views/PlayerDetailView.vue') },
-    { path: '/leagues/:leagueId', component: () => import('../views/LeagueView.vue') },
-    { path: '/leagues/:leagueId/teams/:teamId', component: () => import('../views/TeamView.vue') },
-    { path: '/leagues/:leagueId/managers', component: () => import('../views/LeagueManagersView.vue') },
-    { path: '/leagues/:leagueId/draft', component: () => import('../views/DraftView.vue') },
-    { path: '/leagues/:leagueId/teams/:teamId/live', component: () => import('../views/LiveTeamView.vue') },
-    { path: '/leagues/:leagueId/matchup', component: () => import('../views/WeeklyMatchupView.vue') },
-    { path: '/leagues/:leagueId/teams/:teamId/waivers', component: () => import('../views/WaiverWireView.vue') },
     { path: '/managers/:managerId', component: () => import('../views/ManagerProfileView.vue') },
+    {
+      path: '/leagues/:leagueId',
+      component: LeagueLayout,
+      meta: { requiresAuth: true },
+      children: [
+        { path: '',                          component: () => import('../views/LeagueView.vue') },
+        { path: 'teams/:teamId',             component: () => import('../views/TeamView.vue') },
+        { path: 'managers',                  component: () => import('../views/LeagueManagersView.vue') },
+        { path: 'draft',                     component: () => import('../views/DraftView.vue') },
+        { path: 'teams/:teamId/live',        component: () => import('../views/LiveTeamView.vue') },
+        { path: 'matchup',                   component: () => import('../views/WeeklyMatchupView.vue') },
+        { path: 'history',                   component: () => import('../views/EliminationHistoryView.vue') },
+        { path: 'teams/:teamId/waivers',     component: () => import('../views/WaiverWireView.vue'),  meta: { requiresAuth: true } },
+        { path: 'teams/:teamId/trades',      component: () => import('../views/TradesView.vue'),      meta: { requiresAuth: true } },
+        { path: 'commissioner',              component: () => import('../views/CommissionerView.vue'), meta: { requiresAuth: true } },
+      ],
+    },
   ],
+})
+
+router.beforeEach((to) => {
+  if (to.meta.requiresAuth) {
+    const auth = useAuthStore()
+    if (!auth.token) {
+      return { path: '/login', query: { redirect: to.fullPath } }
+    }
+  }
 })
 
 export default router

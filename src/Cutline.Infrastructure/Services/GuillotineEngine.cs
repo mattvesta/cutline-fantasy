@@ -56,10 +56,13 @@ public class GuillotineEngine : IGuillotineEngine
         week.EliminatedTeamId = eliminated.Id;
         week.Status = WeekStatus.Eliminated;
 
-        // Release roster — players with no RosterSlot are free agents available on waivers
+        // Release roster — players with no RosterSlot are free agents available on waivers.
+        // Snapshot the player IDs before deleting so the elimination history can show what dropped.
         var releasedSlots = await _db.RosterSlots
-            .Where(rs => rs.TeamId == eliminated.Id)
+            .Where(rs => rs.TeamId == eliminated.Id && rs.PlayerId != null)
             .ToListAsync(ct);
+
+        week.DroppedPlayerIds = releasedSlots.Select(rs => rs.PlayerId!.Value).ToArray();
 
         _db.RosterSlots.RemoveRange(releasedSlots);
 

@@ -1,6 +1,8 @@
 using Cutline.Core.Interfaces;
 using Cutline.Infrastructure.Data;
 using Cutline.Infrastructure.Repositories;
+using Cutline.Infrastructure.Services;
+using Cutline.Infrastructure.Sports;
 using Cutline.Ingest.Sports;
 using Cutline.Ingest.Workers;
 using Microsoft.EntityFrameworkCore;
@@ -19,11 +21,14 @@ builder.Services.AddHttpClient<NflverseClient>();
 builder.Services.AddHttpClient<EspnLiveScoringClient>();
 
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
+builder.Services.AddScoped<ILiveScoringService, LiveScoringService>();
+builder.Services.AddScoped<NflverseStatsImporter>();
 
 builder.Services.AddHostedService<SleeperSyncWorker>();
 builder.Services.AddHostedService<NflverseRosterSyncWorker>();
-// Not yet implemented — enable when clients are built out:
-// builder.Services.AddHostedService<NflverseFinalStatsWorker>();
+builder.Services.AddHostedService<NflverseHistoricalBackfillWorker>();
+builder.Services.AddHostedService<NflverseFinalStatsWorker>();
+// Not yet implemented:
 // builder.Services.AddHostedService<EspnLiveScoringWorker>();
 
 var host = builder.Build();

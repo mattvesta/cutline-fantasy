@@ -26,5 +26,8 @@ public class WeekConfiguration : IEntityTypeConfiguration<Week>
             .WithOne(wc => wc.Week)
             .HasForeignKey(wc => wc.WeekId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // PostgreSQL native array — snapshot of player IDs released at elimination time
+        builder.Property(w => w.DroppedPlayerIds).HasColumnType("uuid[]");
     }
 }

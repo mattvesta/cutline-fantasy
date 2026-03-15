@@ -2,13 +2,16 @@
 import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { leaguesApi } from '../api/leagues'
+import { useAuthStore } from '../stores/auth'
 import type { League } from '../api/types'
 
+const auth      = useAuthStore()
 const leagues   = ref<League[]>([])
 const isLoading = ref(true)
 const error     = ref<string | null>(null)
 
 onMounted(async () => {
+  if (!auth.isLoggedIn) { isLoading.value = false; return }
   try { leagues.value = await leaguesApi.getAll() }
   catch { error.value = 'Failed to load leagues' }
   finally { isLoading.value = false }
@@ -146,54 +149,71 @@ const STATUS: Record<string, { dot: string; label: string }> = {
 
     <!-- ── Leagues ───────────────────────────────────────────────────────── -->
     <section class="page" style="padding-top: 4rem">
-      <div class="flex items-center justify-between mb-8">
-        <div>
-          <h2 class="text-2xl font-bold tracking-tight mb-1" style="letter-spacing: -0.03em">
-            Your Leagues
-          </h2>
-          <p class="text-sm" style="color: var(--text-muted)">Manage and track your guillotine leagues</p>
-        </div>
-        <RouterLink to="/leagues/create" class="btn btn-ghost text-xs py-1.5">
-          + New league
-        </RouterLink>
-      </div>
 
-      <!-- Loading skeleton -->
-      <div v-if="isLoading" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <div v-for="n in 3" :key="n" class="card p-5 space-y-4 animate-pulse">
-          <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg" style="background: var(--surface-raised)" />
-            <div class="space-y-2 flex-1">
-              <div class="h-3.5 w-2/5 rounded" style="background: var(--surface-raised)" />
-              <div class="h-3 w-1/3 rounded" style="background: var(--surface-raised)" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div v-else-if="error" class="text-sm" style="color: var(--red)">{{ error }}</div>
-
-      <!-- Empty state -->
-      <div v-else-if="leagues.length === 0"
+      <!-- Not logged in -->
+      <div v-if="!auth.isLoggedIn"
         class="card p-16 text-center"
         style="background: linear-gradient(135deg, var(--surface) 0%, rgba(44,41,64,0.4) 100%)"
       >
-        <div class="w-14 h-14 rounded-xl mx-auto mb-5 flex items-center justify-center text-2xl"
-          style="background: var(--accent-dim); border: 1px solid rgba(227,30,36,0.15)"
-        >
-          🏈
-        </div>
-        <p class="text-xl font-bold tracking-tight mb-2" style="letter-spacing: -0.02em">No leagues yet</p>
+        <p class="text-xl font-bold tracking-tight mb-2" style="letter-spacing: -0.02em">Sign in to see your leagues</p>
         <p class="text-sm mb-8 max-w-xs mx-auto" style="color: var(--text-muted)">
-          Create your first guillotine league and send the blade swinging.
+          Create an account or sign in to manage your guillotine leagues.
         </p>
-        <RouterLink to="/leagues/create" class="btn btn-primary">
-          Create a League
-        </RouterLink>
+        <div class="flex items-center gap-3 justify-center">
+          <RouterLink to="/login" class="btn btn-primary">Sign in</RouterLink>
+          <RouterLink to="/register" class="btn btn-ghost">Create account</RouterLink>
+        </div>
       </div>
 
-      <!-- League grid -->
-      <div v-else class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <template v-else>
+        <div class="flex items-center justify-between mb-8">
+          <div>
+            <h2 class="text-2xl font-bold tracking-tight mb-1" style="letter-spacing: -0.03em">
+              Your Leagues
+            </h2>
+            <p class="text-sm" style="color: var(--text-muted)">Manage and track your guillotine leagues</p>
+          </div>
+          <RouterLink to="/leagues/create" class="btn btn-ghost text-xs py-1.5">
+            + New league
+          </RouterLink>
+        </div>
+
+        <!-- Loading skeleton -->
+        <div v-if="isLoading" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div v-for="n in 3" :key="n" class="card p-5 space-y-4 animate-pulse">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg" style="background: var(--surface-raised)" />
+              <div class="space-y-2 flex-1">
+                <div class="h-3.5 w-2/5 rounded" style="background: var(--surface-raised)" />
+                <div class="h-3 w-1/3 rounded" style="background: var(--surface-raised)" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="error" class="text-sm" style="color: var(--red)">{{ error }}</div>
+
+        <!-- Empty state -->
+        <div v-else-if="leagues.length === 0"
+          class="card p-16 text-center"
+          style="background: linear-gradient(135deg, var(--surface) 0%, rgba(44,41,64,0.4) 100%)"
+        >
+          <div class="w-14 h-14 rounded-xl mx-auto mb-5 flex items-center justify-center text-2xl"
+            style="background: var(--accent-dim); border: 1px solid rgba(227,30,36,0.15)"
+          >
+            🏈
+          </div>
+          <p class="text-xl font-bold tracking-tight mb-2" style="letter-spacing: -0.02em">No leagues yet</p>
+          <p class="text-sm mb-8 max-w-xs mx-auto" style="color: var(--text-muted)">
+            Create your first guillotine league and send the blade swinging.
+          </p>
+          <RouterLink to="/leagues/create" class="btn btn-primary">
+            Create a League
+          </RouterLink>
+        </div>
+
+        <!-- League grid -->
+        <div v-else class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <RouterLink
           v-for="league in leagues"
           :key="league.id"
@@ -230,7 +250,8 @@ const STATUS: Record<string, { dot: string; label: string }> = {
             Season {{ league.season }} · {{ league.teams?.length ?? 0 }} teams
           </p>
         </RouterLink>
-      </div>
+        </div>
+      </template>
     </section>
 
   </div>

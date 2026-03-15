@@ -1,5 +1,10 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import AppNav from './components/AppNav.vue'
+import { useAuthStore } from './stores/auth'
+
+const auth = useAuthStore()
+onMounted(() => auth.init())
 </script>
 
 <template>

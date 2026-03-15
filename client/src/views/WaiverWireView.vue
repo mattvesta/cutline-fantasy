@@ -68,6 +68,7 @@ const rosterForDrop = computed<WaiverRosterSlot[]>(() =>
 
 const faabRemaining = computed(() => state.value?.faabRemaining ?? 0)
 const faabBudget    = computed(() => state.value?.faabBudget ?? 100)
+const minFaabBid    = computed(() => state.value?.minFaabBid ?? 0)
 const faabPct       = computed(() => Math.max(2, (faabRemaining.value / faabBudget.value) * 100))
 
 // Quick-bid presets as % of remaining
@@ -80,14 +81,14 @@ const BID_PRESETS = [
 
 // ── Actions ───────────────────────────────────────────────────────────────
 function openModal(player: WaiverPlayer) {
-  modal.value = { player, dropSlotId: null, bidAmount: 0, submitting: false, error: null }
+  modal.value = { player, dropSlotId: null, bidAmount: minFaabBid.value, submitting: false, error: null }
 }
 
 function closeModal() { modal.value = null }
 
 function setBid(n: number) {
   if (!modal.value) return
-  modal.value.bidAmount = Math.min(Math.max(0, n), faabRemaining.value)
+  modal.value.bidAmount = Math.min(Math.max(minFaabBid.value, n), faabRemaining.value)
 }
 
 async function submitClaim() {
@@ -118,6 +119,36 @@ async function cancelClaim(claimId: string) {
   } finally {
     await load()
   }
+}
+
+// ── Drop player ────────────────────────────────────────────────────────────
+const confirmDropId = ref<string | null>(null)
+const dropping      = ref(false)
+const dropError     = ref<string | null>(null)
+
+function requestDrop(playerId: string) {
+  confirmDropId.value = playerId
+  dropError.value     = null
+}
+
+function cancelDrop() {
+  confirmDropId.value = null
+  dropError.value     = null
+}
+
+async function confirmDrop() {
+  if (!confirmDropId.value) return
+  dropping.value  = true
+  dropError.value = null
+  try {
+    await waiversApi.dropPlayer(leagueId, teamId, confirmDropId.value)
+    confirmDropId.value = null
+    await load()
+  } catch (e) {
+    dropError.value = e instanceof Error ? e.message : 'Failed to drop player.'
+    dropping.value  = false
+  }
+  dropping.value = false
 }
 
 function changePage(n: number) {
@@ -199,7 +230,7 @@ function alreadyClaimed(playerId: string) {
             </div>
           </div>
           <div class="text-right">
-            <p class="text-xs text-[var(--text-muted)] mb-0.5">Spent</p>
+            <p class="text-xs text-[var(--text-muted)] mb-0.5">Allocated</p>
             <p class="text-lg font-bold tabular-nums text-[var(--text-secondary)]">
               ${{ (faabBudget - faabRemaining).toFixed(0) }}
             </p>
@@ -216,7 +247,7 @@ function alreadyClaimed(playerId: string) {
           />
         </div>
         <p class="text-xs text-[var(--text-muted)] mt-2">
-          Blind auction — your bid is hidden from other managers. Highest bid wins.
+          Blind auction — your bid is hidden from other managers. Highest bid wins. Allocated includes pending bids.
         </p>
       </div>
       <div v-else class="mb-6" />
@@ -274,6 +305,61 @@ function alreadyClaimed(playerId: string) {
               @click="cancelClaim(claim.id)"
             >
               Cancel
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── My Roster ──────────────────────────────────────────────────── -->
+      <section v-if="rosterForDrop.length > 0" class="mb-8">
+        <h2 class="label mb-3">My Roster</h2>
+        <div v-if="dropError" class="text-red-400 text-xs mb-2">{{ dropError }}</div>
+        <div class="card overflow-hidden">
+          <div
+            v-for="slot in rosterForDrop"
+            :key="slot.slotId"
+            class="flex items-center gap-3 px-4 py-3 border-b border-[var(--border-subtle)] last:border-0"
+          >
+            <span class="text-xs font-bold w-8 shrink-0" :style="{ color: posColor(slot.player!.position) }">
+              {{ slot.player!.position }}
+            </span>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium truncate text-sm">
+                {{ slot.player!.firstName }} {{ slot.player!.lastName }}
+              </p>
+              <p class="text-xs text-[var(--text-muted)]">
+                {{ slot.player!.nflTeam ?? '—' }} · {{ slot.isStarter ? 'Starter' : 'Bench' }}
+              </p>
+            </div>
+
+            <!-- Inline drop confirm -->
+            <div v-if="confirmDropId === slot.player!.id" class="flex items-center gap-2 shrink-0">
+              <span class="text-xs text-[var(--text-muted)]">Drop?</span>
+              <button
+                class="text-xs px-2.5 py-1.5 rounded font-semibold transition-colors"
+                style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.25)"
+                :disabled="dropping"
+                @click="confirmDrop"
+              >
+                {{ dropping ? '…' : 'Confirm' }}
+              </button>
+              <button
+                class="text-xs px-2.5 py-1.5 rounded transition-colors"
+                style="color: var(--text-muted); background: var(--surface-raised); border: 1px solid var(--border)"
+                @click="cancelDrop"
+              >
+                Cancel
+              </button>
+            </div>
+            <button
+              v-else
+              class="text-xs px-2.5 py-1.5 rounded transition-colors shrink-0"
+              style="color: var(--text-muted); background: var(--surface-raised); border: 1px solid var(--border)"
+              onmouseover="this.style.color='#f87171'; this.style.borderColor='rgba(239,68,68,0.3)'"
+              onmouseout="this.style.color='var(--text-muted)'; this.style.borderColor='var(--border)'"
+              @click="requestDrop(slot.player!.id)"
+            >
+              Drop
             </button>
           </div>
         </div>
@@ -461,7 +547,10 @@ function alreadyClaimed(playerId: string) {
             <div v-if="state?.useFaab">
               <!-- Remaining balance context -->
               <div class="flex items-center justify-between mb-3">
-                <span class="text-xs text-[var(--text-muted)] uppercase tracking-wider font-medium">Your Bid</span>
+                <span class="text-xs text-[var(--text-muted)] uppercase tracking-wider font-medium">
+                  Your Bid
+                  <span v-if="minFaabBid > 0" class="normal-case font-normal ml-1">(min ${{ minFaabBid }})</span>
+                </span>
                 <span class="text-xs text-[var(--text-muted)]">
                   ${{ faabRemaining.toFixed(0) }} available
                 </span>
@@ -476,7 +565,7 @@ function alreadyClaimed(playerId: string) {
                 <input
                   :value="modal.bidAmount"
                   type="number"
-                  min="0"
+                  :min="minFaabBid"
                   :max="faabRemaining"
                   step="1"
                   class="text-5xl font-black tabular-nums w-32 text-center bg-transparent outline-none"
@@ -489,7 +578,7 @@ function alreadyClaimed(playerId: string) {
               <input
                 :value="modal.bidAmount"
                 type="range"
-                min="0"
+                :min="minFaabBid"
                 :max="faabRemaining"
                 step="1"
                 class="bid-slider w-full mb-3"

@@ -11,5 +11,7 @@ public class Team
     public Manager? Manager { get; set; }
     public bool IsEliminated { get; set; }
     public int? EliminatedWeek { get; set; }
+    /// <summary>Commissioner-controlled lock. Prevents lineup changes, waiver claims, drops, and trades.</summary>
+    public bool IsLocked { get; set; }
     public ICollection<RosterSlot> RosterSlots { get; set; } = new List<RosterSlot>();
 }

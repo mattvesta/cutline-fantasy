@@ -11,6 +11,8 @@ public class Week
     public Team? EliminatedTeam { get; set; }
     public ICollection<TeamScore> TeamScores { get; set; } = new List<TeamScore>();
     public ICollection<WaiverClaim> WaiverClaims { get; set; } = new List<WaiverClaim>();
+    /// <summary>Snapshot of the eliminated team's player IDs taken at the moment of elimination.</summary>
+    public Guid[] DroppedPlayerIds { get; set; } = [];
 }
 
 public enum WeekStatus { Upcoming, InProgress, Scoring, Eliminated, Completed }

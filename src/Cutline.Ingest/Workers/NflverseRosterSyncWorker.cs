@@ -2,7 +2,7 @@ namespace Cutline.Ingest.Workers;
 
 using Cutline.Core.Entities;
 using Cutline.Core.Interfaces;
-using Cutline.Ingest.Sports;
+using Cutline.Infrastructure.Sports;
 
 /// <summary>
 /// Runs once per week. Fetches cross-platform player ID mappings from nflverse load_rosters()
@@ -50,6 +50,10 @@ public class NflverseRosterSyncWorker : BackgroundService
                 await repo.PatchIdsAsync(patches, ct);
 
                 _logger.LogInformation("nflverse roster sync complete — {Count} players patched", patches.Count);
+
+                var backfilled = await repo.BackfillGsisIdsAsync(mappings, ct);
+                if (backfilled > 0)
+                    _logger.LogInformation("GsisId backfill: {Count} players updated", backfilled);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
