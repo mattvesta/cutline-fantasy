@@ -2,7 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { playersApi } from '../api/players'
-import type { Player, PlayerPage } from '../api/types'
+import type { PlayerPage } from '../api/types'
 
 const POSITIONS = ['All', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF']
 

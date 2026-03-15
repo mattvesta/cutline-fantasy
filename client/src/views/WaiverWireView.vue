@@ -72,17 +72,11 @@ const faabPct       = computed(() => Math.max(2, (faabRemaining.value / faabBudg
 
 // Quick-bid presets as % of remaining
 const BID_PRESETS = [
-  { label: '$1',   value: (r: number) => 1 },
-  { label: '25%',  value: (r: number) => Math.floor(r * 0.25) },
-  { label: '50%',  value: (r: number) => Math.floor(r * 0.5) },
-  { label: 'Max',  value: (r: number) => r },
+  { label: '$1',   value: () => 1 },
+  { label: '25%',  value: (_r: number) => Math.floor(_r * 0.25) },
+  { label: '50%',  value: (_r: number) => Math.floor(_r * 0.5) },
+  { label: 'Max',  value: (_r: number) => _r },
 ]
-
-// Slider fill %
-const bidSliderPct = computed(() => {
-  if (!modal.value || !faabRemaining.value) return 0
-  return Math.min(100, (modal.value.bidAmount / faabRemaining.value) * 100)
-})
 
 // ── Actions ───────────────────────────────────────────────────────────────
 function openModal(player: WaiverPlayer) {

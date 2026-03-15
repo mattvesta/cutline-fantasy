@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr'
 import { scoringApi } from '../api/scoring'
-import type { WeeklyMatchupResponse, MatchupTeamRow } from '../api/types'
+import type { WeeklyMatchupResponse } from '../api/types'
 
 const route    = useRoute()
 const leagueId = route.params.leagueId as string
